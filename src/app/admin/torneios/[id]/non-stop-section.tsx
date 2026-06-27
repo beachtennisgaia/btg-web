@@ -510,7 +510,7 @@ export function NonStopSection({
   const groups = numGroups && numGroups > 1 ? numGroups : 1;
   const noFinals = pairsAdvancing === 0;
   const advancing = pairsAdvancing ?? 0;
-  const hasFinals = groups > 1 && advancing > 0;
+  const hasFinals = advancing > 0;
 
   const groupMatches = matches.filter((m) => m.groupNumber !== 0);
   const totalMatches = groupMatches.length;
@@ -644,7 +644,7 @@ export function NonStopSection({
           <div style={{ background: "#111", padding: "14px 20px" }}>
             <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 600, color: "#fff", letterSpacing: "0.04em" }}>CLASSIFICAÇÃO</span>
           </div>
-          <GroupStandings matches={matches} regs={active} pairsAdvancing={0} groupLabel="" noFinals={true} />
+          <GroupStandings matches={matches} regs={active} pairsAdvancing={advancing} groupLabel="" noFinals={noFinals} />
         </div>
       )}
 
@@ -661,7 +661,7 @@ export function NonStopSection({
         />
       ))}
 
-      {/* Phase transition card — only for multi-group with finals */}
+      {/* Phase transition card */}
       {hasFinals && totalMatches > 0 && (
         <div style={{ marginTop: 24, borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", border: groupPhaseComplete ? "2px solid #4CAF50" : "2px dashed #ddd", background: "#fff" }}>
           {groupPhaseComplete ? (
@@ -669,9 +669,13 @@ export function NonStopSection({
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 20 }}>✅</span>
                 <div>
-                  <span style={{ fontWeight: 700, fontSize: 14, color: "#2E7D32" }}>Fase de Grupos Concluída</span>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: "#2E7D32" }}>
+                    {groups > 1 ? "Fase de Grupos Concluída" : "Fase de Pool Concluída"}
+                  </span>
                   <p style={{ fontSize: 12, color: "#888", margin: "2px 0 0" }}>
-                    Os top {advancing} de cada grupo avançam para a fase final.
+                    {groups > 1
+                      ? `Os top ${advancing} de cada grupo avançam para a fase final.`
+                      : `As ${advancing} melhores duplas do pool avançam para a fase final.`}
                   </p>
                 </div>
               </div>
@@ -680,13 +684,15 @@ export function NonStopSection({
                 disabled={pending}
                 style={{ background: "#FFF3F3", border: "1px solid #FFCCCC", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, color: "#d32f2f", cursor: "pointer" }}
               >
-                {pending ? "…" : "↩ Reabrir fase de grupos"}
+                {pending ? "…" : `↩ Reabrir ${groups > 1 ? "fase de grupos" : "fase de pool"}`}
               </button>
             </div>
           ) : (
             <div style={{ padding: "20px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
               <div>
-                <span style={{ fontWeight: 700, fontSize: 14, color: "#111" }}>Fase de Grupos</span>
+                <span style={{ fontWeight: 700, fontSize: 14, color: "#111" }}>
+                  {groups > 1 ? "Fase de Grupos" : "Fase de Pool"}
+                </span>
                 <p style={{ fontSize: 12, color: "#888", margin: "3px 0 0" }}>
                   {completedCount}/{totalMatches} partidas registadas
                   {incompleteCount > 0 && <span style={{ color: "#F5A623", marginLeft: 6 }}>· {incompleteCount} por disputar</span>}
@@ -697,7 +703,7 @@ export function NonStopSection({
                 disabled={pending || totalMatches === 0}
                 style={{ background: "#111", border: "none", borderRadius: 8, padding: "9px 20px", fontWeight: 700, fontSize: 13, color: "#F5C000", cursor: "pointer", opacity: totalMatches === 0 ? 0.4 : 1 }}
               >
-                {pending ? "A concluir…" : "Concluir Fase de Grupos →"}
+                {pending ? "A concluir…" : `Concluir ${groups > 1 ? "Fase de Grupos" : "Fase de Pool"} →`}
               </button>
             </div>
           )}

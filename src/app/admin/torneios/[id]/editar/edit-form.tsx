@@ -37,7 +37,7 @@ export function EditTournamentForm({ tournament }: { tournament: Tournament }) {
 
   const isNonStop = format === "NON_STOP";
   const isElimination = format === "ELIMINATION";
-  const hasBracket = (isNonStop && numGroups > 1 && pairsAdvancing > 0) || isElimination;
+  const hasBracket = (isNonStop && pairsAdvancing > 0) || isElimination;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -192,8 +192,7 @@ export function EditTournamentForm({ tournament }: { tournament: Tournament }) {
                   <select name="numGroups" style={selectStyle} value={numGroups} onChange={(e) => {
                     const v = Number(e.target.value);
                     setNumGroups(v);
-                    if (v <= 1) { setPairsAdvancing(0); setFinalsTemplate([]); }
-                    else if (pairsAdvancing === 0) { setPairsAdvancing(1); setFinalsTemplate(defaultBracket(v, 1)); }
+                    if (pairsAdvancing > 0) setFinalsTemplate(defaultBracket(v, pairsAdvancing));
                   }}>
                     <option value={1}>1 — Pool único</option>
                     <option value={2}>2 grupos</option>
@@ -201,29 +200,28 @@ export function EditTournamentForm({ tournament }: { tournament: Tournament }) {
                     <option value={4}>4 grupos</option>
                   </select>
                 </div>
-                {numGroups > 1 && (
-                  <div>
-                    <label style={labelStyle}>Duplas que avançam por grupo</label>
-                    <select name="pairsAdvancing" style={selectStyle} value={pairsAdvancing} onChange={(e) => {
-                      const v = Number(e.target.value);
-                      setPairsAdvancing(v);
-                      setFinalsTemplate(v > 0 ? (finalsTemplate.length > 0 ? finalsTemplate : defaultBracket(numGroups, v)) : []);
-                    }}>
-                      <option value={0}>0 — Sem finais, campeão por grupo</option>
-                      <option value={1}>1 — Top 1 avança</option>
-                      <option value={2}>2 — Top 2 avançam</option>
-                      <option value={3}>3 — Top 3 avançam</option>
-                      <option value={4}>4 — Top 4 avançam</option>
-                    </select>
-                  </div>
-                )}
+                <div>
+                  <label style={labelStyle}>{numGroups > 1 ? "Duplas que avançam por grupo" : "Fase final"}</label>
+                  <select name="pairsAdvancing" style={selectStyle} value={pairsAdvancing} onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setPairsAdvancing(v);
+                    setFinalsTemplate(v > 0 ? defaultBracket(numGroups, v) : []);
+                  }}>
+                    <option value={0}>{numGroups > 1 ? "0 — Sem finais, campeão por grupo" : "Sem fase final"}</option>
+                    <option value={1}>{numGroups > 1 ? "1 — Top 1 avança" : "Top 1 faz final (1ª vs 2ª)"}</option>
+                    <option value={2}>{numGroups > 1 ? "2 — Top 2 avançam" : "Top 2 fazem meias + final"}</option>
+                    <option value={3}>{numGroups > 1 ? "3 — Top 3 avançam" : "Top 3 avançam"}</option>
+                    <option value={4}>{numGroups > 1 ? "4 — Top 4 avançam" : "Top 4 avançam"}</option>
+                  </select>
+                </div>
               </div>
 
               <div style={{ background: "#F9F9F9", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#555", lineHeight: 1.6 }}>
                 <strong>{Math.floor(totalDurationMinutes / (durationMinutes || 1))} rondas</strong>
-                {numGroups > 1 ? ` por grupo · ${numGroups} grupos independentes` : " · todas as duplas jogam em simultâneo"}
-                {numGroups > 1 && pairsAdvancing > 0 ? ` · Top ${pairsAdvancing} de cada grupo avança para a fase final` : ""}
-                {numGroups > 1 && pairsAdvancing === 0 ? " · Campeão independente em cada grupo" : ""}
+                {numGroups > 1 ? ` por grupo · ${numGroups} grupos independentes` : " · pool único, todas as duplas jogam entre si"}
+                {pairsAdvancing > 0 && numGroups > 1 ? ` · Top ${pairsAdvancing} de cada grupo avança para a fase final` : ""}
+                {pairsAdvancing > 0 && numGroups <= 1 ? ` · Top ${pairsAdvancing} do pool jogam fase final` : ""}
+                {pairsAdvancing === 0 && numGroups > 1 ? " · Campeão independente em cada grupo" : ""}
               </div>
             </div>
           </div>

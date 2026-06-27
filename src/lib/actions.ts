@@ -449,8 +449,13 @@ export async function generateFinals(tournamentId: string) {
   // Build per-group standings to resolve G-slot keys like "G1R1" → registration ID
   const groupStandings: Record<number, string[]> = {};
   for (let g = 1; g <= numGroups; g++) {
-    const groupMatches = allMatches.filter((m) => m.groupNumber === g);
-    const groupRegIds = allRegs.filter((r) => r.groupNumber === g).map((r) => r.id);
+    // Single pool: matches have groupNumber=null (no group assignment step)
+    const groupMatches = numGroups <= 1
+      ? allMatches.filter((m) => m.groupNumber === null || m.groupNumber === 1)
+      : allMatches.filter((m) => m.groupNumber === g);
+    const groupRegIds = numGroups <= 1
+      ? allRegs.map((r) => r.id)
+      : allRegs.filter((r) => r.groupNumber === g).map((r) => r.id);
     groupStandings[g] = computeGroupStandings(groupMatches, groupRegIds).map(([id]) => id);
   }
 
