@@ -162,12 +162,14 @@ export function NonStopSection({
   regs,
   hasConfirmedRegs,
   durationMinutes,
+  totalDurationMinutes,
 }: {
   tournamentId: string;
   matches: Match[];
   regs: Registration[];
   hasConfirmedRegs: boolean;
   durationMinutes: number | null;
+  totalDurationMinutes: number | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
@@ -204,7 +206,9 @@ export function NonStopSection({
             </span>
             {matches.length > 0 && (
               <span style={{ fontSize: 12, color: "#888", marginLeft: 10 }}>
-                {completedCount}/{matches.length} partidas · {durationMinutes ?? "?"} min/partida · {courts > 0 ? `${courts} quadras` : ""}
+                {completedCount}/{matches.length} partidas · {rounds.length} rondas · {durationMinutes ?? "?"} min/partida
+                {totalDurationMinutes ? ` · ${Math.floor(totalDurationMinutes / 60)}h${totalDurationMinutes % 60 > 0 ? `${totalDurationMinutes % 60}min` : ""}` : ""}
+                {courts > 0 ? ` · ${courts} quadras` : ""}
               </span>
             )}
           </div>

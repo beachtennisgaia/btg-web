@@ -12,6 +12,8 @@ export default function NovoTorneioPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [format, setFormat] = useState("ELIMINATION");
+  const [durationMinutes, setDurationMinutes] = useState(12);
+  const [totalDurationMinutes, setTotalDurationMinutes] = useState(120);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -79,12 +81,22 @@ export default function NovoTorneioPage() {
           </div>
 
           {format === "NON_STOP" && (
-            <div>
-              <label style={labelStyle}>Duração por partida (minutos) *</label>
-              <input name="durationMinutes" type="number" required defaultValue={12} min={5} max={30} style={inputStyle} />
-              <p style={{ fontSize: 11, color: "#999", margin: "6px 0 0" }}>
-                Tempo de jogo por partida. Quadras = nº de duplas ÷ 2 (todas jogam em simultâneo).
-              </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Duração por partida (min) *</label>
+                  <input name="durationMinutes" type="number" required value={durationMinutes} min={5} max={30} style={inputStyle}
+                    onChange={(e) => setDurationMinutes(Number(e.target.value))} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Duração total do evento (min) *</label>
+                  <input name="totalDurationMinutes" type="number" required value={totalDurationMinutes} min={30} max={480} style={inputStyle}
+                    onChange={(e) => setTotalDurationMinutes(Number(e.target.value))} />
+                </div>
+              </div>
+              <div style={{ background: "#F9F9F9", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#555" }}>
+                <strong>{Math.floor(totalDurationMinutes / (durationMinutes || 1))} rondas</strong> · Quadras = nº de duplas ÷ 2 · Todas as duplas jogam em simultâneo
+              </div>
             </div>
           )}
 

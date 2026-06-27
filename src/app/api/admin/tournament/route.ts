@@ -25,6 +25,7 @@ export async function POST(req: Request) {
   const maxPairs = Number(formData.get("maxPairs"));
   const description = (formData.get("description") as string) || null;
   const durationMinutes = formData.get("durationMinutes") ? Number(formData.get("durationMinutes")) : null;
+  const totalDurationMinutes = formData.get("totalDurationMinutes") ? Number(formData.get("totalDurationMinutes")) : null;
 
   if (!name || !date || !location) {
     return NextResponse.json({ error: "Campos obrigatórios em falta" }, { status: 400 });
@@ -41,6 +42,7 @@ export async function POST(req: Request) {
       maxPairs,
       description,
       durationMinutes,
+      totalDurationMinutes,
       status: "DRAFT",
     },
   });

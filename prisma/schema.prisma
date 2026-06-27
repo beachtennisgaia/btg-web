@@ -92,7 +92,8 @@ model Tournament {
   maxPairs         Int                        @default(16)
   status           TournamentStatus           @default(DRAFT)
   description      String?
-  durationMinutes  Int?                       // Non-Stop only: minutes per match
+  durationMinutes      Int?                   // Non-Stop only: minutes per match
+  totalDurationMinutes Int?                   // Non-Stop only: total event duration in minutes
   createdAt        DateTime                   @default(now())
   updatedAt        DateTime                   @updatedAt
 

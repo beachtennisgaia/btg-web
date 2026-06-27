@@ -67,6 +67,34 @@ export async function cancelOwnRegistration(id: string) {
 
 export async function updateRegistrationStatus(id: string, status: "CONFIRMED" | "CANCELLED" | "PENDING") {
   await requireAdmin();
+
+  if (status === "CONFIRMED") {
+    const reg = await db.registration.findUnique({
+      where: { id },
+      include: { tournament: true },
+    });
+    if (reg) {
+      // Validate no player appears in another confirmed registration
+      const playerIds = [reg.player1Id, reg.player2Id].filter(Boolean) as string[];
+      const conflict = await db.registration.findFirst({
+        where: {
+          id: { not: id },
+          tournamentId: reg.tournamentId,
+          status: "CONFIRMED",
+          OR: [
+            { player1Id: { in: playerIds } },
+            { player2Id: { in: playerIds } },
+          ],
+        },
+        include: { player1: true, player2: true },
+      });
+      if (conflict) {
+        const conflictName = [conflict.player1.name, conflict.player2?.name].filter(Boolean).join(" / ");
+        throw new Error(`Jogador já confirmado noutra dupla: ${conflictName}`);
+      }
+    }
+  }
+
   const reg = await db.registration.update({
     where: { id },
     data: { status },
@@ -173,6 +201,13 @@ export async function drawPairs(tournamentId: string) {
     }
   }
 
+  // Validate no duplicate players across pairs
+  const allPlayerIds = pairs.flatMap(([r1, r2]) => [r1.player1.id, r2.player1.id]);
+  const uniqueIds = new Set(allPlayerIds);
+  if (uniqueIds.size !== allPlayerIds.length) {
+    throw new Error("Sorteio resultou em jogadores duplicados — verifique as inscrições");
+  }
+
   // Apply pairs: set player2Id on player1's registration, cancel player2's solo registration
   await db.$transaction(
     pairs.map(([reg1, reg2]) =>
@@ -212,6 +247,11 @@ export async function generateNonStopSchedule(tournamentId: string) {
 
   await db.match.deleteMany({ where: { tournamentId } });
 
+  const tournament = await db.tournament.findUnique({
+    where: { id: tournamentId },
+    select: { durationMinutes: true, totalDurationMinutes: true },
+  });
+
   const registrations = await db.registration.findMany({
     where: { tournamentId, status: "CONFIRMED" },
     orderBy: { createdAt: "asc" },
@@ -226,6 +266,13 @@ export async function generateNonStopSchedule(tournamentId: string) {
   const rotating = ids.slice(1);
   const courts = n / 2;
 
+  // Limit rounds to what fits in the event duration (or full round-robin if not set)
+  const maxPossibleRounds = n - 1;
+  const totalRounds =
+    tournament?.durationMinutes && tournament?.totalDurationMinutes
+      ? Math.min(Math.floor(tournament.totalDurationMinutes / tournament.durationMinutes), maxPossibleRounds)
+      : maxPossibleRounds;
+
   const matchData: {
     tournamentId: string;
     round: number;
@@ -237,7 +284,7 @@ export async function generateNonStopSchedule(tournamentId: string) {
     completedAt: null;
   }[] = [];
 
-  for (let round = 0; round < n - 1; round++) {
+  for (let round = 0; round < totalRounds; round++) {
     const roundPairs: [string, string][] = [[fixed, rotating[0]]];
     for (let i = 1; i < courts; i++) {
       roundPairs.push([rotating[i], rotating[n - 1 - i]]);
