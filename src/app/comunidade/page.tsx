@@ -6,16 +6,10 @@ import { PostCard } from "./post-card";
 
 const YEAR = 2026;
 
-const EVENTS = [
-  { day: "12", month: "JUL", title: "Torneio de Verão BTG", sub: "Canide · Duplas Mistas", highlight: true },
-  { day: "23", month: "AGO", title: "Non-Stop BTG Agosto", sub: "Salgueiros · Formato Non-Stop", highlight: false },
-  { day: "20", month: "SET", title: "Convívio Anual BTG", sub: "Local a confirmar", highlight: false },
-];
-
 export default async function ComunidadePage() {
   const { userId } = await auth();
 
-  const [posts, members] = await Promise.all([
+  const [posts, members, upcomingEvents] = await Promise.all([
     db.post.findMany({
       include: {
         author: true,
@@ -31,6 +25,11 @@ export default async function ComunidadePage() {
     }),
     db.member.findMany({
       include: { rankingPoints: { where: { year: YEAR } } },
+    }),
+    db.tournament.findMany({
+      where: { status: { in: ["OPEN", "ONGOING"] }, date: { gte: new Date() } },
+      orderBy: { date: "asc" },
+      take: 4,
     }),
   ]);
 
@@ -105,20 +104,34 @@ export default async function ComunidadePage() {
             <div style={{ background: "#111", padding: "14px 18px" }}>
               <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 600, color: "#fff", letterSpacing: "0.04em" }}>PRÓXIMOS EVENTOS</span>
             </div>
-            <div style={{ padding: "14px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
-              {EVENTS.map((ev) => (
-                <div key={ev.title} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                  <div style={{ background: ev.highlight ? "#F5C000" : "#F0F0F0", borderRadius: 8, padding: "6px 10px", textAlign: "center", minWidth: 44, flexShrink: 0 }}>
-                    <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 20, fontWeight: 700, color: ev.highlight ? "#111" : "#555", margin: 0, lineHeight: 1 }}>{ev.day}</p>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: ev.highlight ? "#111" : "#555", margin: 0, textTransform: "uppercase" }}>{ev.month}</p>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: "#111", margin: 0 }}>{ev.title}</p>
-                    <p style={{ fontSize: 12, color: "#888", margin: "2px 0 0" }}>{ev.sub}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {upcomingEvents.length === 0 ? (
+              <div style={{ padding: "20px 18px", textAlign: "center" }}>
+                <p style={{ fontSize: 13, color: "#aaa", margin: 0 }}>Sem torneios agendados de momento.</p>
+              </div>
+            ) : (
+              <div style={{ padding: "14px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
+                {upcomingEvents.map((t, i) => {
+                  const d = new Date(t.date);
+                  const highlight = i === 0;
+                  return (
+                    <div key={t.id} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                      <div style={{ background: highlight ? "#F5C000" : "#F0F0F0", borderRadius: 8, padding: "6px 10px", textAlign: "center", minWidth: 44, flexShrink: 0 }}>
+                        <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 20, fontWeight: 700, color: highlight ? "#111" : "#555", margin: 0, lineHeight: 1 }}>
+                          {d.getDate()}
+                        </p>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: highlight ? "#111" : "#555", margin: 0, textTransform: "uppercase" }}>
+                          {d.toLocaleDateString("pt-PT", { month: "short" }).replace(".", "")}
+                        </p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: "#111", margin: 0 }}>{t.name}</p>
+                        <p style={{ fontSize: 12, color: "#888", margin: "2px 0 0" }}>{t.location}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* TOP 3 RANKING */}

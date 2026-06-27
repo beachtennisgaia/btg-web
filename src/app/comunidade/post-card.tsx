@@ -93,7 +93,7 @@ export function PostCard({ post, memberId }: { post: Post; memberId: string | nu
           )}
           <div>
             <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: "#111" }}>
-              {isAdmin ? "Beach Tennis Gaia" : post.author.name}
+              {post.author.name}
             </p>
             <p style={{ margin: 0, fontSize: 12, color: "#888" }}>
               {isAdmin ? "Direção BTG" : "Sócio BTG"} · {timeAgo(post.createdAt)}
