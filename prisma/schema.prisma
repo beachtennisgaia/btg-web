@@ -96,6 +96,7 @@ model Tournament {
   totalDurationMinutes Int?                   // Non-Stop only: total event duration in minutes
   numGroups            Int?                   // Non-Stop only: number of groups (null/1 = single pool)
   pairsAdvancing       Int?                   // Non-Stop only: pairs per group advancing to finals
+  groupPhaseComplete   Boolean                @default(false)
   createdAt        DateTime                   @default(now())
   updatedAt        DateTime                   @updatedAt
 

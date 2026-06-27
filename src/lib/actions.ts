@@ -364,6 +364,73 @@ export async function generateNonStopSchedule(tournamentId: string) {
   revalidatePath(`/admin/torneios/${tournamentId}`);
 }
 
+function computeGroupStandings(groupMatches: { pair1Id: string | null; pair2Id: string | null; score1: number | null; score2: number | null; completedAt: Date | null }[], regIds: string[]) {
+  const totals: Record<string, { wins: number; balance: number }> = {};
+  for (const id of regIds) totals[id] = { wins: 0, balance: 0 };
+  for (const m of groupMatches.filter((m) => m.completedAt)) {
+    if (m.pair1Id && totals[m.pair1Id] !== undefined) {
+      totals[m.pair1Id].balance += (m.score1 ?? 0) - (m.score2 ?? 0);
+      if ((m.score1 ?? 0) > (m.score2 ?? 0)) totals[m.pair1Id].wins++;
+    }
+    if (m.pair2Id && totals[m.pair2Id] !== undefined) {
+      totals[m.pair2Id].balance += (m.score2 ?? 0) - (m.score1 ?? 0);
+      if ((m.score2 ?? 0) > (m.score1 ?? 0)) totals[m.pair2Id].wins++;
+    }
+  }
+  return Object.entries(totals).sort(([, a], [, b]) => b.wins - a.wins || b.balance - a.balance);
+}
+
+export async function completeGroupPhase(tournamentId: string) {
+  await requireAdmin();
+  await db.tournament.update({ where: { id: tournamentId }, data: { groupPhaseComplete: true } });
+  revalidatePath(`/admin/torneios/${tournamentId}`);
+}
+
+export async function reopenGroupPhase(tournamentId: string) {
+  await requireAdmin();
+  // Also delete finals matches (groupNumber = 0) so they can be regenerated
+  await db.match.deleteMany({ where: { tournamentId, groupNumber: 0 } });
+  await db.tournament.update({ where: { id: tournamentId }, data: { groupPhaseComplete: false } });
+  revalidatePath(`/admin/torneios/${tournamentId}`);
+}
+
+export async function generateFinals(tournamentId: string) {
+  await requireAdmin();
+  await db.match.deleteMany({ where: { tournamentId, groupNumber: 0 } });
+
+  const tournament = await db.tournament.findUnique({
+    where: { id: tournamentId },
+    select: { durationMinutes: true, totalDurationMinutes: true, numGroups: true, pairsAdvancing: true },
+  });
+  const numGroups = tournament?.numGroups ?? 1;
+  const pairsAdvancing = tournament?.pairsAdvancing ?? 0;
+  if (pairsAdvancing < 1) throw new Error("Este torneio não tem fase final configurada");
+
+  const [allMatches, allRegs] = await Promise.all([
+    db.match.findMany({ where: { tournamentId } }),
+    db.registration.findMany({ where: { tournamentId, status: "CONFIRMED" } }),
+  ]);
+
+  const finalists: string[] = [];
+  for (let g = 1; g <= numGroups; g++) {
+    const groupMatches = allMatches.filter((m) => m.groupNumber === g);
+    const groupRegIds = allRegs.filter((r) => r.groupNumber === g).map((r) => r.id);
+    const ranked = computeGroupStandings(groupMatches, groupRegIds);
+    finalists.push(...ranked.slice(0, pairsAdvancing).map(([id]) => id));
+  }
+
+  if (finalists.length < 2) throw new Error("Não há finalistas suficientes");
+
+  const maxRoundsFromTime =
+    tournament?.durationMinutes && tournament?.totalDurationMinutes
+      ? Math.floor(tournament.totalDurationMinutes / tournament.durationMinutes)
+      : 999;
+
+  const finalsMatchData = circleRoundRobin(finalists, maxRoundsFromTime, 0, tournamentId);
+  await db.match.createMany({ data: finalsMatchData });
+  revalidatePath(`/admin/torneios/${tournamentId}`);
+}
+
 export async function generateBracket(tournamentId: string) {
   await requireAdmin();
 

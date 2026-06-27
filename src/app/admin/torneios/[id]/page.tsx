@@ -123,6 +123,7 @@ export default async function TorneioDetailPage({ params }: { params: Promise<{ 
             totalDurationMinutes={tournament.totalDurationMinutes}
             numGroups={tournament.numGroups}
             pairsAdvancing={tournament.pairsAdvancing}
+            groupPhaseComplete={tournament.groupPhaseComplete}
           />
         ) : (
           <MatchesSection

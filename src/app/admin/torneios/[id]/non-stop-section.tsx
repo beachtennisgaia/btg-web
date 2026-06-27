@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { generateNonStopSchedule, updateNonStopResult, resetBracket, assignGroups } from "@/lib/actions";
+import { generateNonStopSchedule, updateNonStopResult, resetBracket, assignGroups, completeGroupPhase, reopenGroupPhase, generateFinals } from "@/lib/actions";
 
 type Registration = {
   id: string;
@@ -260,6 +260,96 @@ function GroupSection({
   );
 }
 
+function FinalsSection({
+  matches,
+  regs,
+  durationMinutes,
+  tournamentId,
+}: {
+  matches: Match[];
+  regs: Registration[];
+  durationMinutes: number | null;
+  tournamentId: string;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState("");
+  const finalsMatches = matches.filter((m) => m.groupNumber === 0);
+  const rounds = [...new Set(finalsMatches.map((m) => m.round))].sort((a, b) => a - b);
+  const completed = finalsMatches.filter((m) => m.completedAt).length;
+
+  function handleGenerate() {
+    setError("");
+    startTransition(async () => {
+      try { await generateFinals(tournamentId); }
+      catch (e) { setError((e as Error).message); }
+    });
+  }
+
+  function handleReset() {
+    if (!confirm("Apagar a fase final e regenerar?")) return;
+    setError("");
+    startTransition(async () => {
+      try { await generateFinals(tournamentId); }
+      catch (e) { setError((e as Error).message); }
+    });
+  }
+
+  return (
+    <div style={{ marginTop: 24, background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+      <div style={{ background: "#F5C000", padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 700, color: "#111", letterSpacing: "0.06em" }}>
+            FASE FINAL
+          </span>
+          {finalsMatches.length > 0 && (
+            <span style={{ fontSize: 12, color: "#555", marginLeft: 10 }}>
+              {completed}/{finalsMatches.length} partidas
+            </span>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {finalsMatches.length === 0 ? (
+            <button onClick={handleGenerate} disabled={pending} style={{ background: "#111", border: "none", borderRadius: 8, padding: "7px 16px", fontWeight: 700, fontSize: 13, color: "#F5C000", cursor: "pointer" }}>
+              {pending ? "A gerar…" : "Gerar Fase Final"}
+            </button>
+          ) : (
+            <button onClick={handleReset} disabled={pending} style={{ background: "rgba(0,0,0,0.1)", border: "none", borderRadius: 8, padding: "7px 14px", fontWeight: 600, fontSize: 13, color: "#111", cursor: "pointer" }}>
+              🔄 Refazer
+            </button>
+          )}
+        </div>
+      </div>
+
+      {error && <div style={{ padding: "10px 20px", background: "#FFF3F3", color: "#d32f2f", fontSize: 13 }}>{error}</div>}
+
+      {finalsMatches.length === 0 ? (
+        <div style={{ padding: "28px 20px", textAlign: "center", color: "#aaa", fontSize: 13 }}>
+          Clica em "Gerar Fase Final" para criar as partidas com os classificados de cada grupo.
+        </div>
+      ) : (
+        <>
+          {rounds.map((round) => (
+            <div key={round}>
+              <div style={{ padding: "7px 16px", background: "#FFFCE8", borderBottom: "1px solid #F5E000", borderTop: round > 1 ? "2px solid #F5E000" : undefined, display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontWeight: 700, fontSize: 11, color: "#7A5900", textTransform: "uppercase", letterSpacing: "0.06em" }}>Ronda Final {round}</span>
+                {durationMinutes && <span style={{ fontSize: 11, color: "#aaa" }}>{durationMinutes} min</span>}
+              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <tbody>
+                  {finalsMatches.filter((m) => m.round === round).map((match) => (
+                    <GameRow key={match.id} match={match} regs={regs} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+          <GroupStandings matches={finalsMatches} regs={regs} pairsAdvancing={0} groupLabel="Final" noFinals={true} />
+        </>
+      )}
+    </div>
+  );
+}
+
 export function NonStopSection({
   tournamentId,
   matches,
@@ -269,6 +359,7 @@ export function NonStopSection({
   totalDurationMinutes,
   numGroups,
   pairsAdvancing,
+  groupPhaseComplete,
 }: {
   tournamentId: string;
   matches: Match[];
@@ -278,6 +369,7 @@ export function NonStopSection({
   totalDurationMinutes: number | null;
   numGroups: number | null;
   pairsAdvancing: number | null;
+  groupPhaseComplete: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
@@ -286,9 +378,12 @@ export function NonStopSection({
   const groups = numGroups && numGroups > 1 ? numGroups : 1;
   const noFinals = pairsAdvancing === 0;
   const advancing = pairsAdvancing ?? 0;
+  const hasFinals = groups > 1 && advancing > 0;
 
-  const totalMatches = matches.filter((m) => m.groupNumber !== 0).length;
-  const completedCount = matches.filter((m) => m.completedAt && m.groupNumber !== 0).length;
+  const groupMatches = matches.filter((m) => m.groupNumber !== 0);
+  const totalMatches = groupMatches.length;
+  const completedCount = groupMatches.filter((m) => m.completedAt).length;
+  const incompleteCount = totalMatches - completedCount;
   const pairsWithGroup = active.filter((r) => r.groupNumber !== null).length;
   const pairsNeedGroup = groups > 1 && pairsWithGroup < active.length;
 
@@ -309,10 +404,31 @@ export function NonStopSection({
   }
 
   function handleReset() {
-    if (!confirm("Apagar o schedule e recomeçar?")) return;
+    if (!confirm("Apagar todo o schedule (grupos + finais) e recomeçar?")) return;
     setError("");
     startTransition(async () => {
       try { await resetBracket(tournamentId); }
+      catch (e) { setError((e as Error).message); }
+    });
+  }
+
+  function handleCompletePhase() {
+    const msg = incompleteCount > 0
+      ? `Ainda há ${incompleteCount} partida${incompleteCount !== 1 ? "s" : ""} por registar. Concluir mesmo assim?`
+      : "Concluir a fase de grupos e avançar para a fase final?";
+    if (!confirm(msg)) return;
+    setError("");
+    startTransition(async () => {
+      try { await completeGroupPhase(tournamentId); }
+      catch (e) { setError((e as Error).message); }
+    });
+  }
+
+  function handleReopenPhase() {
+    if (!confirm("Reabrir a fase de grupos? Isto apagará as partidas da fase final.")) return;
+    setError("");
+    startTransition(async () => {
+      try { await reopenGroupPhase(tournamentId); }
       catch (e) { setError((e as Error).message); }
     });
   }
@@ -328,26 +444,24 @@ export function NonStopSection({
             </span>
             {totalMatches > 0 && (
               <span style={{ fontSize: 12, color: "#888", marginLeft: 10 }}>
-                {completedCount}/{totalMatches} partidas
+                {completedCount}/{totalMatches} partidas de grupo
                 {durationMinutes ? ` · ${durationMinutes} min/partida` : ""}
                 {totalDurationMinutes ? ` · ${Math.floor(totalDurationMinutes / 60)}h${totalDurationMinutes % 60 > 0 ? `${totalDurationMinutes % 60}min` : ""}` : ""}
               </span>
             )}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            {/* Step 1: assign groups (if multi-group and not done) */}
-            {groups > 1 && pairsNeedGroup && hasConfirmedRegs && (
+            {groups > 1 && pairsNeedGroup && hasConfirmedRegs && !groupPhaseComplete && (
               <button onClick={handleAssignGroups} disabled={pending} style={{ background: "#F5C000", border: "none", borderRadius: 8, padding: "7px 16px", fontWeight: 700, fontSize: 13, color: "#111", cursor: "pointer" }}>
                 {pending ? "A distribuir…" : "🎲 Distribuir grupos"}
               </button>
             )}
-            {/* Step 2: generate schedule */}
-            {totalMatches === 0 && hasConfirmedRegs && (!pairsNeedGroup) && (
+            {totalMatches === 0 && hasConfirmedRegs && !pairsNeedGroup && !groupPhaseComplete && (
               <button onClick={handleGenerate} disabled={pending} style={{ background: "#F5C000", border: "none", borderRadius: 8, padding: "7px 16px", fontWeight: 700, fontSize: 13, color: "#111", cursor: "pointer" }}>
                 {pending ? "A gerar…" : "Gerar Schedule"}
               </button>
             )}
-            {totalMatches > 0 && (
+            {totalMatches > 0 && !groupPhaseComplete && (
               <button onClick={handleReset} disabled={pending} style={{ background: "#F0F0F0", border: "none", borderRadius: 8, padding: "7px 14px", fontWeight: 600, fontSize: 13, color: "#555", cursor: "pointer" }}>
                 🔄 Refazer
               </button>
@@ -383,7 +497,6 @@ export function NonStopSection({
           ));
         })()}
 
-        {/* Group assignment status */}
         {groups > 1 && pairsNeedGroup && totalMatches === 0 && (
           <div style={{ padding: "20px 24px", color: "#888", fontSize: 13, textAlign: "center" }}>
             {pairsWithGroup > 0
@@ -415,6 +528,59 @@ export function NonStopSection({
           noFinals={noFinals}
         />
       ))}
+
+      {/* Phase transition card — only for multi-group with finals */}
+      {hasFinals && totalMatches > 0 && (
+        <div style={{ marginTop: 24, borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", border: groupPhaseComplete ? "2px solid #4CAF50" : "2px dashed #ddd", background: "#fff" }}>
+          {groupPhaseComplete ? (
+            <div style={{ padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 20 }}>✅</span>
+                <div>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: "#2E7D32" }}>Fase de Grupos Concluída</span>
+                  <p style={{ fontSize: 12, color: "#888", margin: "2px 0 0" }}>
+                    Os top {advancing} de cada grupo avançam para a fase final.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleReopenPhase}
+                disabled={pending}
+                style={{ background: "#FFF3F3", border: "1px solid #FFCCCC", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, color: "#d32f2f", cursor: "pointer" }}
+              >
+                {pending ? "…" : "↩ Reabrir fase de grupos"}
+              </button>
+            </div>
+          ) : (
+            <div style={{ padding: "20px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+              <div>
+                <span style={{ fontWeight: 700, fontSize: 14, color: "#111" }}>Fase de Grupos</span>
+                <p style={{ fontSize: 12, color: "#888", margin: "3px 0 0" }}>
+                  {completedCount}/{totalMatches} partidas registadas
+                  {incompleteCount > 0 && <span style={{ color: "#F5A623", marginLeft: 6 }}>· {incompleteCount} por disputar</span>}
+                </p>
+              </div>
+              <button
+                onClick={handleCompletePhase}
+                disabled={pending || totalMatches === 0}
+                style={{ background: "#111", border: "none", borderRadius: 8, padding: "9px 20px", fontWeight: 700, fontSize: 13, color: "#F5C000", cursor: "pointer", opacity: totalMatches === 0 ? 0.4 : 1 }}
+              >
+                {pending ? "A concluir…" : "Concluir Fase de Grupos →"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Finals section */}
+      {hasFinals && groupPhaseComplete && (
+        <FinalsSection
+          matches={matches}
+          regs={active}
+          durationMinutes={durationMinutes}
+          tournamentId={tournamentId}
+        />
+      )}
     </>
   );
 }
