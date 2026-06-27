@@ -132,6 +132,7 @@ export default async function TorneioDetailPage({ params }: { params: Promise<{ 
             matches={tournament.matches}
             regs={tournament.registrations}
             hasConfirmedRegs={tournament.registrations.some((r) => r.status === "CONFIRMED")}
+            finalsTemplate={tournament.finalsTemplate as import("@/lib/actions").FinalsBracketTemplate | null}
           />
         )
       )}

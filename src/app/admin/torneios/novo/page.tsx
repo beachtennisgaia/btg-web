@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BracketBuilder, defaultBracket } from "@/components/bracket-builder";
+import { BracketBuilder, defaultBracket, defaultEliminationBracket } from "@/components/bracket-builder";
 import type { FinalsBracketTemplate } from "@/components/bracket-builder";
 
 const inputStyle: React.CSSProperties = { width: "100%", padding: "10px 12px", border: "1.5px solid #e0e0e0", borderRadius: 8, fontSize: 14, fontFamily: "var(--font-inter), sans-serif", outline: "none", boxSizing: "border-box", color: "#111" };
@@ -18,10 +18,12 @@ export default function NovoTorneioPage() {
   const [totalDurationMinutes, setTotalDurationMinutes] = useState(120);
   const [numGroups, setNumGroups] = useState(1);
   const [pairsAdvancing, setPairsAdvancing] = useState(0);
-  const [finalsTemplate, setFinalsTemplate] = useState<FinalsBracketTemplate>([]);
+  const [bracketSize, setBracketSize] = useState(8);
+  const [finalsTemplate, setFinalsTemplate] = useState<FinalsBracketTemplate>(() => defaultEliminationBracket(8));
 
   const isNonStop = format === "NON_STOP";
-  const hasBracket = isNonStop && numGroups > 1 && pairsAdvancing > 0;
+  const isElimination = format === "ELIMINATION";
+  const hasBracket = (isNonStop && numGroups > 1 && pairsAdvancing > 0) || isElimination;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -40,7 +42,7 @@ export default function NovoTorneioPage() {
   }
 
   return (
-    <div style={{ padding: 32, maxWidth: isNonStop ? 1140 : 680 }}>
+    <div style={{ padding: 32, maxWidth: (isNonStop || isElimination) ? 1140 : 680 }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 28, fontWeight: 700, color: "#111", margin: 0 }}>CRIAR TORNEIO</h1>
         <p style={{ color: "#888", fontSize: 14, margin: "4px 0 0" }}>O torneio fica em rascunho até abrires as inscrições.</p>
@@ -50,7 +52,7 @@ export default function NovoTorneioPage() {
         {/* ── Top section: two columns when NON_STOP ── */}
         <div style={{
           display: "grid",
-          gridTemplateColumns: isNonStop ? "minmax(0,1fr) minmax(0,1fr)" : "1fr",
+          gridTemplateColumns: (isNonStop || isElimination) ? "minmax(0,1fr) minmax(0,1fr)" : "1fr",
           gap: 24,
           alignItems: "start",
         }}>
@@ -80,7 +82,13 @@ export default function NovoTorneioPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <div>
                 <label style={labelStyle}>Formato *</label>
-                <select name="format" required style={selectStyle} value={format} onChange={(e) => setFormat(e.target.value)}>
+                <select name="format" required style={selectStyle} value={format} onChange={(e) => {
+                  const v = e.target.value;
+                  setFormat(v);
+                  if (v === "ELIMINATION") setFinalsTemplate(defaultEliminationBracket(bracketSize));
+                  else if (v === "NON_STOP" && numGroups > 1 && pairsAdvancing > 0) setFinalsTemplate(defaultBracket(numGroups, pairsAdvancing));
+                  else setFinalsTemplate([]);
+                }}>
                   <option value="ELIMINATION">Eliminatório</option>
                   <option value="NON_STOP">Non-Stop</option>
                 </select>
@@ -110,6 +118,38 @@ export default function NovoTorneioPage() {
               <textarea name="description" rows={3} placeholder="Informações adicionais sobre o torneio..." style={{ ...inputStyle, resize: "vertical" }} />
             </div>
           </div>
+
+          {/* Right: ELIMINATION configuration */}
+          {isElimination && (
+            <div style={{ background: "#fff", borderRadius: 16, padding: 28, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", gap: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 3, height: 20, background: "#F5C000", borderRadius: 2 }} />
+                <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 700, color: "#111", letterSpacing: "0.04em" }}>CONFIGURAÇÃO ELIMINATÓRIO</span>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Tamanho do quadro *</label>
+                <select name="bracketSize" style={selectStyle} value={bracketSize} onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setBracketSize(v);
+                  setFinalsTemplate(defaultEliminationBracket(v));
+                }}>
+                  <option value={2}>2 duplas — Final directa</option>
+                  <option value={4}>4 duplas — Meias-Finais + Final</option>
+                  <option value={8}>8 duplas — Quartas + Meias + Final</option>
+                  <option value={16}>16 duplas — Oitavos + Quartas + Meias + Final</option>
+                  <option value={32}>32 duplas — 1/16 + Oitavos + Quartas + Meias + Final</option>
+                </select>
+                <p style={{ fontSize: 11, color: "#999", margin: "5px 0 0" }}>
+                  Os cabeças de chave são atribuídos depois das inscrições fecharem.
+                </p>
+              </div>
+
+              <div style={{ background: "#F9F9F9", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#555", lineHeight: 1.6 }}>
+                <strong>{bracketSize} participantes</strong> · {Math.log2(bracketSize)} rondas · eliminação directa
+              </div>
+            </div>
+          )}
 
           {/* Right: NON_STOP configuration */}
           {isNonStop && (
@@ -188,12 +228,20 @@ export default function NovoTorneioPage() {
               <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 700, color: "#111", letterSpacing: "0.04em" }}>CRUZAMENTOS DA FASE FINAL</span>
               <span style={{ fontSize: 12, color: "#888" }}>— arrasta as classificações para os slots</span>
             </div>
-            <BracketBuilder
-              numGroups={numGroups}
-              pairsAdvancing={pairsAdvancing}
-              initial={finalsTemplate.length > 0 ? finalsTemplate : null}
-              onChange={setFinalsTemplate}
-            />
+            {isElimination ? (
+              <BracketBuilder
+                numSeeds={bracketSize}
+                initial={finalsTemplate.length > 0 ? finalsTemplate : null}
+                onChange={setFinalsTemplate}
+              />
+            ) : (
+              <BracketBuilder
+                numGroups={numGroups}
+                pairsAdvancing={pairsAdvancing}
+                initial={finalsTemplate.length > 0 ? finalsTemplate : null}
+                onChange={setFinalsTemplate}
+              />
+            )}
             <input type="hidden" name="finalsTemplate" value={JSON.stringify(finalsTemplate)} />
           </div>
         )}

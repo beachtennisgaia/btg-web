@@ -131,6 +131,7 @@ model Registration {
   player2Id    String?
   status       RegistrationStatus  @default(PENDING)
   groupNumber  Int?
+  seedNumber   Int?
   createdAt    DateTime           @default(now())
 
   matchesAsP1 Match[] @relation("Pair1")

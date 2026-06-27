@@ -519,34 +519,82 @@ export async function advanceFinalsRound(tournamentId: string, completedRound: n
   revalidatePath(`/admin/torneios/${tournamentId}`);
 }
 
+export async function assignSeedNumber(regId: string, seedNumber: number | null) {
+  await requireAdmin();
+  await db.registration.update({ where: { id: regId }, data: { seedNumber } });
+  const reg = await db.registration.findUnique({ where: { id: regId }, select: { tournamentId: true } });
+  if (reg) revalidatePath(`/admin/torneios/${reg.tournamentId}`);
+}
+
 export async function generateBracket(tournamentId: string) {
   await requireAdmin();
+  await db.match.deleteMany({ where: { tournamentId } });
 
-  await db.match.deleteMany({ where: { tournamentId } }); // idempotent reset before generating
+  const tournament = await db.tournament.findUnique({
+    where: { id: tournamentId },
+    select: { finalsTemplate: true },
+  });
+  const template = (tournament?.finalsTemplate ?? null) as BracketEntry[] | null;
 
   const registrations = await db.registration.findMany({
     where: { tournamentId, status: "CONFIRMED" },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ seedNumber: "asc" }, { createdAt: "asc" }],
   });
   if (registrations.length < 2) throw new Error("Mínimo 2 inscrições confirmadas");
 
-  const matches: { tournamentId: string; round: number; position: number; pair1Id: string; pair2Id: string | null; winnerId: string | null; completedAt: Date | null }[] = [];
-  for (let i = 0; i < registrations.length; i += 2) {
-    const pair1 = registrations[i];
-    const pair2 = registrations[i + 1] ?? null;
-    const bye = pair2 === null;
-    matches.push({
-      tournamentId,
-      round: 1,
-      position: Math.floor(i / 2) + 1,
-      pair1Id: pair1.id,
-      pair2Id: pair2?.id ?? null,
-      winnerId: bye ? pair1.id : null,
-      completedAt: bye ? new Date() : null,
-    });
+  const matchData: { tournamentId: string; round: number; position: number; label: string | null; pair1Id: string; pair2Id: string | null; winnerId: string | null; completedAt: Date | null }[] = [];
+
+  if (template && template.length > 0) {
+    // Template-based bracket: resolve S{n} slots from registrations by seedNumber
+    const minRound = Math.min(...template.map(e => e.round));
+    const round1 = template.filter(e => e.round === minRound);
+
+    function resolveSeedSlot(slot: string): string | null {
+      const m = slot.match(/^S(\d+)$/);
+      if (!m) return null;
+      const n = parseInt(m[1]);
+      // Find registration with seedNumber=n, fallback to position n-1
+      return registrations.find(r => r.seedNumber === n)?.id
+        ?? registrations[n - 1]?.id
+        ?? null;
+    }
+
+    for (const entry of round1) {
+      const pair1Id = resolveSeedSlot(entry.slot1);
+      const pair2Id = entry.slot2 ? resolveSeedSlot(entry.slot2) : null;
+      if (!pair1Id) throw new Error(`Cabeça de chave não encontrada: ${entry.slot1}`);
+      const bye = !pair2Id;
+      matchData.push({
+        tournamentId,
+        round: entry.round,
+        position: entry.position,
+        label: entry.label ?? null,
+        pair1Id,
+        pair2Id,
+        winnerId: bye ? pair1Id : null,
+        completedAt: bye ? new Date() : null,
+      });
+    }
+  } else {
+    // Auto bracket: pair registrations sequentially
+    for (let i = 0; i < registrations.length; i += 2) {
+      const pair1 = registrations[i];
+      const pair2 = registrations[i + 1] ?? null;
+      const bye = pair2 === null;
+      matchData.push({
+        tournamentId,
+        round: 1,
+        position: Math.floor(i / 2) + 1,
+        label: null,
+        pair1Id: pair1.id,
+        pair2Id: pair2?.id ?? null,
+        winnerId: bye ? pair1.id : null,
+        completedAt: bye ? new Date() : null,
+      });
+    }
   }
 
-  await db.match.createMany({ data: matches });
+  await db.match.createMany({ data: matchData });
   revalidatePath(`/admin/torneios/${tournamentId}`);
   revalidatePath(`/torneios/${tournamentId}`);
 }

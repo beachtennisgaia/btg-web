@@ -6,13 +6,16 @@ import type { BracketEntry, FinalsBracketTemplate } from "@/lib/actions";
 export { type BracketEntry, type FinalsBracketTemplate };
 
 // ── Slot grammar ─────────────────────────────────────────────────────
-// G{n}R{r}  →  {r}º do Grupo {A/B/C…}
+// G{n}R{r}  →  {r}º do Grupo {A/B/C…}   (Non-Stop groups)
+// S{n}      →  {n}º Cabeça de Chave      (Elimination seeds)
 // W{r}.{p}  →  Vencedor da Partida {p} na Ronda {r}
 // L{r}.{p}  →  Perdedor da Partida {p} na Ronda {r}
 
 export function slotLabel(slot: string): string {
   const g = slot.match(/^G(\d+)R(\d+)$/);
   if (g) return `${g[2]}º Grupo ${String.fromCharCode(64 + parseInt(g[1]))}`;
+  const s = slot.match(/^S(\d+)$/);
+  if (s) return `${s[1]}º Cabeça`;
   const w = slot.match(/^W(\d+)\.(\d+)$/);
   if (w) return `Venc. M${w[2]}`;
   const l = slot.match(/^L(\d+)\.(\d+)$/);
@@ -22,8 +25,14 @@ export function slotLabel(slot: string): string {
 
 // ── Structure helpers ─────────────────────────────────────────────────
 
-const ROUND_NAMES: Record<number, string> = { 0: "Final", 1: "Meias-Finais", 2: "Quartas-de-Final", 3: "Oitavos-de-Final" };
-const MATCH_NAMES: Record<number, (p: number) => string> = { 0: () => "Final", 1: p => `Semifinal ${p}`, 2: p => `Quarta ${p}`, 3: p => `Oitavo ${p}` };
+const ROUND_NAMES: Record<number, string> = {
+  0: "Final", 1: "Meias-Finais", 2: "Quartas-de-Final",
+  3: "Oitavos-de-Final", 4: "1/16 Avos", 5: "1/32 Avos",
+};
+const MATCH_NAMES: Record<number, (p: number) => string> = {
+  0: () => "Final", 1: p => `Semifinal ${p}`, 2: p => `Quarta ${p}`,
+  3: p => `Oitavo ${p}`, 4: p => `1/16 – Jogo ${p}`, 5: p => `1/32 – Jogo ${p}`,
+};
 
 function matchesPerRound(totalPairs: number): number[] {
   if (totalPairs < 2) return [];
@@ -37,10 +46,37 @@ function defaultRoundName(numRounds: number, ri: number): string {
   return ROUND_NAMES[numRounds - 1 - ri] ?? `Ronda ${ri + 1}`;
 }
 function defaultMatchName(numRounds: number, ri: number, pos: number): string {
-  return (MATCH_NAMES[numRounds - 1 - ri] ?? ((p: number) => `Partida ${p}`))(pos);
+  return (MATCH_NAMES[numRounds - 1 - ri] ?? ((p: number) => `Jogo ${p}`))(pos);
 }
 
-function defaultSeeding(numGroups: number, pairsAdvancing: number): string[] {
+// Standard seeding for N participants: S1 vs S{n}, S2 vs S{n-1} distributed by bracket half
+function standardSeedPairs(n: number): [string, string][] {
+  // For powers of 2, use classic bracket seeding
+  // S1 vs S{n}, S{n/2} vs S{n/2+1}, etc. arranged to keep top seeds apart
+  const pairs: [string, string][] = [];
+  function fill(top: number, bottom: number) {
+    if (top >= bottom) return;
+    if (bottom - top === 1) { pairs.push([`S${top}`, `S${bottom}`]); return; }
+    const mid = Math.floor((bottom - top + 1) / 2);
+    // Top seed vs bottom seed in this range
+    fill(top, top + mid - 1);
+    fill(top + mid, bottom);
+  }
+  // Simple approach: sequential pairing with cross-seeding
+  if (n === 2) return [["S1", "S2"]];
+  if (n === 4) return [["S1", "S4"], ["S3", "S2"]];
+  if (n === 8) return [["S1", "S8"], ["S5", "S4"], ["S3", "S6"], ["S7", "S2"]];
+  if (n === 16) return [
+    ["S1", "S16"], ["S9", "S8"], ["S5", "S12"], ["S13", "S4"],
+    ["S3", "S14"], ["S11", "S6"], ["S7", "S10"], ["S15", "S2"],
+  ];
+  // Fallback: sequential S1 vs S{n}, S2 vs S{n-1}...
+  for (let i = 1; i <= Math.floor(n / 2); i++) pairs.push([`S${i}`, `S${n + 1 - i}`]);
+  void fill;
+  return pairs;
+}
+
+function defaultGroupSeeding(numGroups: number, pairsAdvancing: number): string[] {
   if (numGroups === 2 && pairsAdvancing === 1) return ["G1R1", "G2R1"];
   if (numGroups === 2 && pairsAdvancing === 2) return ["G1R1", "G2R2", "G2R1", "G1R2"];
   const out: string[] = [];
@@ -48,11 +84,12 @@ function defaultSeeding(numGroups: number, pairsAdvancing: number): string[] {
   return out;
 }
 
+// Default bracket for Non-Stop group finals
 export function defaultBracket(numGroups: number, pairsAdvancing: number): FinalsBracketTemplate {
   const rounds = matchesPerRound(numGroups * pairsAdvancing);
   const nR = rounds.length;
   if (nR === 0) return [];
-  const seeds = defaultSeeding(numGroups, pairsAdvancing);
+  const seeds = defaultGroupSeeding(numGroups, pairsAdvancing);
   const entries: BracketEntry[] = [];
   for (let ri = 0; ri < nR; ri++) {
     const r = ri + 1;
@@ -65,11 +102,38 @@ export function defaultBracket(numGroups: number, pairsAdvancing: number): Final
   return entries;
 }
 
+// Default bracket for Elimination with N seeds
+export function defaultEliminationBracket(numSeeds: number): FinalsBracketTemplate {
+  const rounds = matchesPerRound(numSeeds);
+  const nR = rounds.length;
+  if (nR === 0) return [];
+  const seedPairs = standardSeedPairs(numSeeds);
+  const entries: BracketEntry[] = [];
+  for (let ri = 0; ri < nR; ri++) {
+    const r = ri + 1;
+    for (let pos = 1; pos <= rounds[ri]; pos++) {
+      let slot1: string, slot2: string;
+      if (ri === 0) {
+        slot1 = seedPairs[pos - 1]?.[0] ?? `S${2 * pos - 1}`;
+        slot2 = seedPairs[pos - 1]?.[1] ?? `S${2 * pos}`;
+      } else {
+        slot1 = `W${r - 1}.${2 * pos - 1}`;
+        slot2 = `W${r - 1}.${2 * pos}`;
+      }
+      entries.push({ round: r, roundLabel: defaultRoundName(nR, ri), position: pos, label: defaultMatchName(nR, ri, pos), slot1, slot2 });
+    }
+  }
+  return entries;
+}
+
 // ── Component ─────────────────────────────────────────────────────────
 
 type Props = {
-  numGroups: number;
-  pairsAdvancing: number;
+  // Non-Stop mode: provide numGroups + pairsAdvancing
+  numGroups?: number;
+  pairsAdvancing?: number;
+  // Elimination mode: provide numSeeds
+  numSeeds?: number;
   initial?: FinalsBracketTemplate | null;
   onChange?: (t: FinalsBracketTemplate) => void;
   onSave?: (t: FinalsBracketTemplate) => Promise<void>;
@@ -78,16 +142,22 @@ type Props = {
 
 const BASE_H = 110; // height per R1 match slot (px)
 
-export function BracketBuilder({ numGroups, pairsAdvancing, initial, onChange, onSave, onCancel }: Props) {
-  const total = numGroups * pairsAdvancing;
+export function BracketBuilder({ numGroups, pairsAdvancing, numSeeds, initial, onChange, onSave, onCancel }: Props) {
+  const isElimination = numSeeds != null && numSeeds > 0;
+  const total = isElimination ? numSeeds : (numGroups ?? 0) * (pairsAdvancing ?? 0);
   const mpr = matchesPerRound(total); // matches per round array
   const nR = mpr.length;
 
-  // All G-slot sources
+  // Sources: either S{n} chips (elimination) or G{g}R{r} chips (non-stop groups)
   const allSources = (() => {
     const s: { key: string; label: string }[] = [];
-    for (let g = 1; g <= numGroups; g++) for (let r = 1; r <= pairsAdvancing; r++)
-      s.push({ key: `G${g}R${r}`, label: `${r}º Grupo ${String.fromCharCode(64 + g)}` });
+    if (isElimination) {
+      for (let n = 1; n <= numSeeds; n++) s.push({ key: `S${n}`, label: `${n}º Cabeça` });
+    } else {
+      const ng = numGroups ?? 0; const pa = pairsAdvancing ?? 0;
+      for (let g = 1; g <= ng; g++) for (let r = 1; r <= pa; r++)
+        s.push({ key: `G${g}R${r}`, label: `${r}º Grupo ${String.fromCharCode(64 + g)}` });
+    }
     return s;
   })();
 
@@ -96,7 +166,9 @@ export function BracketBuilder({ numGroups, pairsAdvancing, initial, onChange, o
     const a: Record<string, string> = {};  // "r-pos-side" → G slot key
     const ml: Record<string, string> = {}; // "r-pos" → label
     const rl: Record<number, string> = {}; // round → label
-    const src = initial && initial.length > 0 ? initial : defaultBracket(numGroups, pairsAdvancing);
+    const src = initial && initial.length > 0 ? initial
+      : isElimination ? defaultEliminationBracket(numSeeds!)
+      : defaultBracket(numGroups ?? 0, pairsAdvancing ?? 0);
     for (const e of src) {
       if (e.roundLabel) rl[e.round] = e.roundLabel;
       ml[`${e.round}-${e.position}`] = e.label;
