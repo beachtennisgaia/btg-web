@@ -81,3 +81,64 @@ body {
   .btg-sidebar { width: 100%; }
   .btg-member-card { width: 100%; }
 }
+
+/* ── Admin layout ── */
+.btg-admin-layout  { display: flex; min-height: 100vh; font-family: var(--font-inter), sans-serif; }
+.btg-admin-content { flex: 1; background: #F5F5F5; overflow-x: hidden; }
+.btg-admin-page    { padding: 32px; max-width: 900px; }
+.btg-admin-topbar  { display: none; }
+.btg-admin-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 99; }
+.btg-admin-close   { display: none; }
+
+@media (max-width: 768px) {
+  .btg-admin-layout { flex-direction: column; }
+  .btg-admin-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #111; padding: 0 16px; height: 52px;
+    position: sticky; top: 0; z-index: 50; flex-shrink: 0;
+  }
+  .btg-admin-sidebar {
+    position: fixed !important; top: 0; left: -260px; width: 240px !important;
+    height: 100vh; z-index: 100; transition: left 0.22s ease;
+    overflow-y: auto;
+  }
+  .btg-admin-sidebar.btg-open { left: 0; }
+  .btg-admin-overlay.btg-open { display: block; }
+  .btg-admin-close { display: flex; }
+  .btg-admin-page  { padding: 12px; max-width: 100%; }
+}
+
+/* ── Non-stop game rows ── */
+.btg-game-row {
+  display: grid;
+  grid-template-columns: 48px 1fr min-content 1fr;
+  grid-template-areas: "court pair1 score pair2";
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid #f5f5f5;
+  gap: 4px;
+}
+.btg-game-court      { grid-area: court; display: flex; justify-content: center; }
+.btg-game-pair1      { grid-area: pair1; font-size: 13px; text-align: right; }
+.btg-game-pair1.btg-winner { font-weight: 700; color: #111; }
+.btg-game-pair2      { grid-area: pair2; font-size: 13px; }
+.btg-game-pair2.btg-winner { font-weight: 700; color: #111; }
+.btg-game-score-area { grid-area: score; display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 110px; }
+
+@media (max-width: 600px) {
+  .btg-game-row {
+    grid-template-columns: 36px 1fr;
+    grid-template-areas:
+      "court pair1"
+      "court pair2"
+      "court score";
+    row-gap: 3px;
+    column-gap: 8px;
+    padding: 10px 12px;
+  }
+  .btg-game-pair1 { text-align: left; }
+  .btg-game-pair2 { font-size: 12px; color: #888; }
+  .btg-game-pair2::before { content: "vs "; color: #ccc; font-size: 11px; }
+  .btg-game-pair2.btg-winner { color: #555; }
+  .btg-game-score-area { justify-content: flex-start; }
+}

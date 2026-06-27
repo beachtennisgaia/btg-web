@@ -54,6 +54,8 @@ function GameRow({ match, regs }: { match: Match; regs: Registration[] }) {
   const done = !!match.completedAt;
   const pair1 = pairLabel(match.pair1Id, regs);
   const pair2 = pairLabel(match.pair2Id, regs);
+  const p1Won = done && (match.score1 ?? 0) > (match.score2 ?? 0);
+  const p2Won = done && (match.score2 ?? 0) > (match.score1 ?? 0);
 
   function handleSave() {
     const n1 = parseInt(g1), n2 = parseInt(g2);
@@ -75,41 +77,37 @@ function GameRow({ match, regs }: { match: Match; regs: Registration[] }) {
   }
 
   return (
-    <tr style={{ borderBottom: "1px solid #f5f5f5" }}>
-      <td style={{ padding: "10px 16px", width: 60, textAlign: "center" }}>
+    <div className="btg-game-row">
+      <span className="btg-game-court">
         <span style={{ fontSize: 11, fontWeight: 700, background: "#F5C000", color: "#111", borderRadius: 6, padding: "2px 8px" }}>
           Q{match.court ?? match.position}
         </span>
-      </td>
-      <td style={{ padding: "10px 8px", fontSize: 13, color: done && (match.score1 ?? 0) > (match.score2 ?? 0) ? "#111" : "#555", fontWeight: done && (match.score1 ?? 0) > (match.score2 ?? 0) ? 700 : 400, textAlign: "right", width: "35%" }}>
-        {pair1}
-      </td>
-      <td style={{ padding: "10px 8px", textAlign: "center", minWidth: 110 }}>
+      </span>
+      <span className={`btg-game-pair1${p1Won ? " btg-winner" : ""}`}>{pair1}</span>
+      <div className="btg-game-score-area">
         {done ? (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+          <>
             <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 700, color: "#111" }}>
               {match.score1} – {match.score2}
             </span>
-            <button onClick={handleReset} disabled={pending} style={{ background: "none", border: "1px solid #eee", borderRadius: 5, padding: "2px 7px", fontSize: 10, color: "#aaa", cursor: "pointer", marginLeft: 4 }}>
+            <button onClick={handleReset} disabled={pending} style={{ background: "none", border: "1px solid #eee", borderRadius: 5, padding: "2px 7px", fontSize: 10, color: "#aaa", cursor: "pointer" }}>
               ✎
             </button>
-          </div>
+          </>
         ) : (
-          <div style={{ display: "flex", gap: 4, alignItems: "center", justifyContent: "center" }}>
-            <input value={g1} onChange={(e) => setG1(e.target.value)} placeholder="0" style={{ width: 38, textAlign: "center", border: "1.5px solid #ddd", borderRadius: 6, padding: "3px 5px", fontSize: 14, fontWeight: 700 }} />
+          <>
+            <input value={g1} onChange={(e) => setG1(e.target.value)} placeholder="0" style={{ width: 38, textAlign: "center", border: "1.5px solid #ddd", borderRadius: 6, padding: "5px 4px", fontSize: 16, fontWeight: 700 }} />
             <span style={{ color: "#ccc", fontSize: 12 }}>–</span>
-            <input value={g2} onChange={(e) => setG2(e.target.value)} placeholder="0" style={{ width: 38, textAlign: "center", border: "1.5px solid #ddd", borderRadius: 6, padding: "3px 5px", fontSize: 14, fontWeight: 700 }} />
-            <button onClick={handleSave} disabled={pending} style={{ background: "#F5C000", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 12, fontWeight: 700, color: "#111", cursor: "pointer" }}>
+            <input value={g2} onChange={(e) => setG2(e.target.value)} placeholder="0" style={{ width: 38, textAlign: "center", border: "1.5px solid #ddd", borderRadius: 6, padding: "5px 4px", fontSize: 16, fontWeight: 700 }} />
+            <button onClick={handleSave} disabled={pending} style={{ background: "#F5C000", border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 14, fontWeight: 700, color: "#111", cursor: "pointer" }}>
               {pending ? "…" : "✓"}
             </button>
-          </div>
+          </>
         )}
-        {error && <div style={{ fontSize: 10, color: "#d32f2f", marginTop: 2 }}>{error}</div>}
-      </td>
-      <td style={{ padding: "10px 8px", fontSize: 13, color: done && (match.score2 ?? 0) > (match.score1 ?? 0) ? "#111" : "#555", fontWeight: done && (match.score2 ?? 0) > (match.score1 ?? 0) ? 700 : 400, textAlign: "left", width: "35%" }}>
-        {pair2}
-      </td>
-    </tr>
+        {error && <div style={{ fontSize: 10, color: "#d32f2f", marginTop: 2, gridColumn: "span 4" }}>{error}</div>}
+      </div>
+      <span className={`btg-game-pair2${p2Won ? " btg-winner" : ""}`}>{pair2}</span>
+    </div>
   );
 }
 
@@ -242,13 +240,11 @@ function GroupSection({
                 <span style={{ fontWeight: 700, fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em" }}>Ronda {round}</span>
                 {durationMinutes && <span style={{ fontSize: 11, color: "#aaa" }}>{durationMinutes} min</span>}
               </div>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <tbody>
-                  {groupMatches.filter((m) => m.round === round).map((match) => (
-                    <GameRow key={match.id} match={match} regs={regs} />
-                  ))}
-                </tbody>
-              </table>
+              <div>
+                {groupMatches.filter((m) => m.round === round).map((match) => (
+                  <GameRow key={match.id} match={match} regs={regs} />
+                ))}
+              </div>
             </div>
           ))}
           <GroupStandings
@@ -433,24 +429,18 @@ function FinalsSection({
                   </div>
                   {durationMinutes && <span style={{ fontSize: 11, color: "#aaa" }}>{durationMinutes} min</span>}
                 </div>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <tbody>
-                    {roundMatches.map((match) => (
-                      <tr key={match.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
-                        {match.label && (
-                          <td style={{ padding: "0 16px", width: 120 }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: "#7A5900", background: "#FFFCE8", borderRadius: 4, padding: "2px 7px", border: "1px solid #F5E080" }}>{match.label}</span>
-                          </td>
-                        )}
-                        <td colSpan={match.label ? 1 : 4} style={{ padding: 0 }}>
-                          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                            <tbody><GameRow match={match} regs={regs} /></tbody>
-                          </table>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div>
+                  {roundMatches.map((match) => (
+                    <div key={match.id}>
+                      {match.label && (
+                        <div style={{ padding: "6px 16px 0" }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#7A5900", background: "#FFFCE8", borderRadius: 4, padding: "2px 7px", border: "1px solid #F5E080" }}>{match.label}</span>
+                        </div>
+                      )}
+                      <GameRow match={match} regs={regs} />
+                    </div>
+                  ))}
+                </div>
               </div>
             );
           })}
@@ -618,13 +608,11 @@ export function NonStopSection({
                 <span style={{ fontWeight: 700, fontSize: 12, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em" }}>Ronda {round}</span>
                 {durationMinutes && <span style={{ fontSize: 11, color: "#aaa" }}>{durationMinutes} min</span>}
               </div>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <tbody>
-                  {matches.filter((m) => m.round === round).map((match) => (
-                    <GameRow key={match.id} match={match} regs={regs} />
-                  ))}
-                </tbody>
-              </table>
+              <div>
+                {matches.filter((m) => m.round === round).map((match) => (
+                  <GameRow key={match.id} match={match} regs={regs} />
+                ))}
+              </div>
             </div>
           ));
         })()}
