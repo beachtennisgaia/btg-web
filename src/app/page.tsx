@@ -21,7 +21,7 @@ export default async function HomePage() {
     db.member.count(),
     db.tournament.count({ where: { status: "FINISHED" } }),
     db.tournament.findMany({
-      where: { status: { in: ["OPEN", "DRAFT"] } },
+      where: { status: { in: ["ONGOING", "OPEN", "DRAFT"] } },
       orderBy: { date: "asc" },
       take: 3,
       include: { _count: { select: { registrations: true } } },
@@ -42,7 +42,7 @@ export default async function HomePage() {
     .sort((a, b) => b.points - a.points)
     .slice(0, 3);
 
-  const nextTournament = upcomingTournaments.find((t) => t.status === "OPEN") ?? upcomingTournaments[0] ?? null;
+  const nextTournament = upcomingTournaments.find((t) => t.status === "ONGOING") ?? upcomingTournaments.find((t) => t.status === "OPEN") ?? upcomingTournaments[0] ?? null;
 
   return (
     <div className="min-h-screen flex flex-col" style={{ fontFamily: "var(--font-inter), sans-serif" }}>
@@ -97,13 +97,13 @@ export default async function HomePage() {
       {nextTournament ? (
         <section style={{ background: "#F5C000", padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
           <div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#8A6800", textTransform: "uppercase", letterSpacing: "0.08em" }}>● Próximo Torneio</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: nextTournament.status === "ONGOING" ? "#d32f2f" : "#8A6800", textTransform: "uppercase", letterSpacing: "0.08em" }}>{nextTournament.status === "ONGOING" ? "● A Decorrer Agora" : "● Próximo Torneio"}</span>
             <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 22, fontWeight: 700, color: "#111", margin: "4px 0 0" }}>
               {nextTournament.name.toUpperCase()} · {new Date(nextTournament.date).toLocaleDateString("pt-PT", { day: "numeric", month: "short" }).toUpperCase()} · {nextTournament.location.toUpperCase()}
             </p>
           </div>
           <Link href="/torneios" style={{ background: "#111", color: "#F5C000", fontWeight: 700, padding: "12px 24px", borderRadius: 8, fontSize: 15, textDecoration: "none", whiteSpace: "nowrap" }}>
-            {nextTournament.status === "OPEN" ? "Inscrever-me Agora" : "Saber Mais"}
+            {nextTournament.status === "ONGOING" ? "Ver a Decorrer" : nextTournament.status === "OPEN" ? "Inscrever-me Agora" : "Saber Mais"}
           </Link>
         </section>
       ) : null}
