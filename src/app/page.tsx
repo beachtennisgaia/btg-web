@@ -1,36 +1,12 @@
 import Link from "next/link";
-import { SignInButton, SignUpButton, UserButton, Show } from "@clerk/nextjs";
+import { SignInButton, SignUpButton } from "@clerk/nextjs";
+import { Nav } from "@/components/nav";
 
 export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col" style={{ fontFamily: "var(--font-inter), sans-serif" }}>
 
-      {/* NAV */}
-      <nav style={{ background: "#111", height: 72, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", position: "sticky", top: 0, zIndex: 50 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/btg-logo-white.png" alt="BTG Beach Tennis Gaia" style={{ height: 56, width: "auto" }} />
-          <span style={{ color: "#888", fontSize: 13, fontWeight: 500 }}>Beach Tennis Gaia</span>
-        </div>
-        <div style={{ display: "flex", gap: 28, alignItems: "center" }}>
-          <Link href="/torneios" style={{ color: "#ccc", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Torneios</Link>
-          <Link href="/ranking" style={{ color: "#ccc", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Ranking</Link>
-          <Link href="/comunidade" style={{ color: "#ccc", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Comunidade</Link>
-          <Show when="signed-out">
-            <SignInButton mode="modal">
-              <button style={{ color: "#ccc", background: "transparent", border: "none", fontSize: 14, cursor: "pointer", fontWeight: 500 }}>Entrar</button>
-            </SignInButton>
-            <SignUpButton mode="modal">
-              <button style={{ background: "#F5C000", color: "#111", fontWeight: 700, fontSize: 14, padding: "8px 18px", borderRadius: 7, border: "none", cursor: "pointer" }}>
-                Tornar-me Sócio
-              </button>
-            </SignUpButton>
-          </Show>
-          <Show when="signed-in">
-            <UserButton />
-          </Show>
-        </div>
-      </nav>
+      <Nav />
 
       {/* HERO */}
       <section style={{ position: "relative", minHeight: 520, display: "flex", alignItems: "center", overflow: "hidden" }}>
