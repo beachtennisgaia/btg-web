@@ -394,7 +394,7 @@ export async function reopenGroupPhase(tournamentId: string) {
   revalidatePath(`/admin/torneios/${tournamentId}`);
 }
 
-export type BracketEntry = { round: number; position: number; label: string; slot1: string; slot2: string };
+export type BracketEntry = { round: number; roundLabel?: string; position: number; label: string; slot1: string; slot2: string };
 export type FinalsBracketTemplate = BracketEntry[];
 
 export async function saveFinalsBracket(tournamentId: string, template: BracketEntry[]) {
@@ -405,6 +405,7 @@ export async function saveFinalsBracket(tournamentId: string, template: BracketE
 
 export async function generateFinals(tournamentId: string) {
   await requireAdmin();
+  // Delete all existing finals matches (clean slate for round 1)
   await db.match.deleteMany({ where: { tournamentId, groupNumber: 0 } });
 
   const tournament = await db.tournament.findUnique({
@@ -420,7 +421,7 @@ export async function generateFinals(tournamentId: string) {
     db.registration.findMany({ where: { tournamentId, status: "CONFIRMED" } }),
   ]);
 
-  // Build per-group standings to resolve slot keys like "G1R1" → registration ID
+  // Build per-group standings to resolve G-slot keys like "G1R1" → registration ID
   const groupStandings: Record<number, string[]> = {};
   for (let g = 1; g <= numGroups; g++) {
     const groupMatches = allMatches.filter((m) => m.groupNumber === g);
@@ -428,7 +429,7 @@ export async function generateFinals(tournamentId: string) {
     groupStandings[g] = computeGroupStandings(groupMatches, groupRegIds).map(([id]) => id);
   }
 
-  function resolveSlot(slot: string): string | null {
+  function resolveGroupSlot(slot: string): string | null {
     const match = slot.match(/^G(\d+)R(\d+)$/);
     if (!match) return null;
     const g = parseInt(match[1]);
@@ -441,10 +442,12 @@ export async function generateFinals(tournamentId: string) {
   let matchData: { tournamentId: string; round: number; position: number; groupNumber: number; label: string | null; pair1Id: string | null; pair2Id: string | null; winnerId: null; completedAt: null }[] = [];
 
   if (template && template.length > 0) {
-    // Use configured bracket
-    for (const entry of template) {
-      const pair1Id = resolveSlot(entry.slot1);
-      const pair2Id = resolveSlot(entry.slot2);
+    // Only generate the first round (minimum round number in template)
+    const minRound = Math.min(...template.map((e) => e.round));
+    const round1Entries = template.filter((e) => e.round === minRound);
+    for (const entry of round1Entries) {
+      const pair1Id = resolveGroupSlot(entry.slot1);
+      const pair2Id = resolveGroupSlot(entry.slot2);
       if (!pair1Id || !pair2Id) throw new Error(`Slot inválido ou dupla não encontrada: ${entry.slot1} / ${entry.slot2}`);
       matchData.push({ tournamentId, round: entry.round, position: entry.position, groupNumber: 0, label: entry.label ?? null, pair1Id, pair2Id, winnerId: null, completedAt: null });
     }
@@ -461,6 +464,55 @@ export async function generateFinals(tournamentId: string) {
         : 999;
     const rr = circleRoundRobin(finalists, maxRoundsFromTime, 0, tournamentId);
     matchData = rr.map(({ court: _c, groupNumber, ...m }) => ({ ...m, groupNumber: groupNumber ?? 0, label: null }));
+  }
+
+  await db.match.createMany({ data: matchData });
+  revalidatePath(`/admin/torneios/${tournamentId}`);
+}
+
+export async function advanceFinalsRound(tournamentId: string, completedRound: number) {
+  await requireAdmin();
+  const tournament = await db.tournament.findUnique({
+    where: { id: tournamentId },
+    select: { finalsTemplate: true },
+  });
+  const template = (tournament?.finalsTemplate ?? null) as BracketEntry[] | null;
+  const nextRound = completedRound + 1;
+  const nextEntries = template?.filter((e) => e.round === nextRound) ?? [];
+  if (nextEntries.length === 0) throw new Error(`Não há partidas configuradas para a ronda ${nextRound}`);
+
+  // Get all completed finals matches to resolve W/L slots
+  const prevMatches = await db.match.findMany({
+    where: { tournamentId, groupNumber: 0, round: completedRound },
+  });
+  const incomplete = prevMatches.filter((m) => !m.completedAt);
+  if (incomplete.length > 0) throw new Error(`Há ${incomplete.length} partida(s) da ronda anterior sem resultado`);
+
+  function resolveSlot(slot: string): string | null {
+    const w = slot.match(/^W(\d+)\.(\d+)$/);
+    if (w) {
+      const m = prevMatches.find((x) => x.round === parseInt(w[1]) && x.position === parseInt(w[2]));
+      return m?.winnerId ?? null;
+    }
+    const l = slot.match(/^L(\d+)\.(\d+)$/);
+    if (l) {
+      const m = prevMatches.find((x) => x.round === parseInt(l[1]) && x.position === parseInt(l[2]));
+      if (!m) return null;
+      if (m.winnerId === m.pair1Id) return m.pair2Id;
+      if (m.winnerId === m.pair2Id) return m.pair1Id;
+      return null;
+    }
+    return null;
+  }
+
+  await db.match.deleteMany({ where: { tournamentId, groupNumber: 0, round: nextRound } });
+
+  const matchData = [];
+  for (const entry of nextEntries) {
+    const pair1Id = resolveSlot(entry.slot1);
+    const pair2Id = resolveSlot(entry.slot2);
+    if (!pair1Id || !pair2Id) throw new Error(`Não foi possível resolver os slots ${entry.slot1} / ${entry.slot2} — verifique se todos os resultados estão preenchidos`);
+    matchData.push({ tournamentId, round: entry.round, position: entry.position, groupNumber: 0, label: entry.label ?? null, pair1Id, pair2Id, winnerId: null, completedAt: null });
   }
 
   await db.match.createMany({ data: matchData });

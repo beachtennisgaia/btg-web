@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { generateNonStopSchedule, updateNonStopResult, resetBracket, assignGroups, completeGroupPhase, reopenGroupPhase, generateFinals, saveFinalsBracket } from "@/lib/actions";
+import { generateNonStopSchedule, updateNonStopResult, resetBracket, assignGroups, completeGroupPhase, reopenGroupPhase, generateFinals, advanceFinalsRound, saveFinalsBracket } from "@/lib/actions";
 import type { FinalsBracketTemplate } from "@/lib/actions";
 import { BracketBuilder, slotLabel } from "@/components/bracket-builder";
 import type { BracketEntry } from "@/components/bracket-builder";
@@ -287,14 +287,37 @@ function FinalsSection({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const finalsMatches = matches.filter((m) => m.groupNumber === 0);
-  const rounds = [...new Set(finalsMatches.map((m) => m.round))].sort((a, b) => a - b);
+  const existingRounds = [...new Set(finalsMatches.map((m) => m.round))].sort((a, b) => a - b);
   const completed = finalsMatches.filter((m) => m.completedAt).length;
   const hasTemplate = finalsTemplate && finalsTemplate.length > 0;
+
+  // Build a lookup: round number → round label from template
+  const roundLabels: Record<number, string> = {};
+  finalsTemplate?.forEach((e) => { if (e.roundLabel) roundLabels[e.round] = e.roundLabel; });
+
+  // Determine the highest round with matches and if it's complete
+  const maxExistingRound = existingRounds.length > 0 ? Math.max(...existingRounds) : 0;
+  const currentRoundComplete = maxExistingRound > 0 &&
+    finalsMatches.filter((m) => m.round === maxExistingRound).every((m) => m.completedAt);
+
+  // Find the next round in the template (if any)
+  const templateRounds = hasTemplate ? [...new Set(finalsTemplate!.map((e) => e.round))].sort((a, b) => a - b) : [];
+  const nextTemplateRound = templateRounds.find((r) => r > maxExistingRound) ?? null;
+  const nextRoundLabel = nextTemplateRound ? (roundLabels[nextTemplateRound] ?? `Ronda ${nextTemplateRound}`) : null;
 
   function handleGenerate() {
     setError("");
     startTransition(async () => {
       try { await generateFinals(tournamentId); setEditing(false); }
+      catch (e) { setError((e as Error).message); }
+    });
+  }
+
+  function handleAdvance() {
+    if (!nextTemplateRound) return;
+    setError("");
+    startTransition(async () => {
+      try { await advanceFinalsRound(tournamentId, maxExistingRound); }
       catch (e) { setError((e as Error).message); }
     });
   }
@@ -317,12 +340,12 @@ function FinalsSection({
         <div style={{ display: "flex", gap: 8 }}>
           {!editing && (
             <button onClick={() => setEditing(true)} style={{ background: "rgba(0,0,0,0.1)", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, color: "#111", cursor: "pointer" }}>
-              ✏️ {hasTemplate ? "Editar cruzamentos" : "Configurar cruzamentos"}
+              ✏️ {hasTemplate ? "Editar estrutura" : "Configurar estrutura"}
             </button>
           )}
           {!editing && hasTemplate && finalsMatches.length === 0 && (
             <button onClick={handleGenerate} disabled={pending} style={{ background: "#111", border: "none", borderRadius: 8, padding: "7px 16px", fontWeight: 700, fontSize: 13, color: "#F5C000", cursor: "pointer" }}>
-              {pending ? "A gerar…" : "Gerar Fase Final"}
+              {pending ? "A gerar…" : "Gerar 1ª Ronda →"}
             </button>
           )}
           {!editing && finalsMatches.length > 0 && (
@@ -344,7 +367,7 @@ function FinalsSection({
       {editing && (
         <div style={{ padding: "20px 24px" }}>
           <p style={{ fontSize: 13, color: "#555", margin: "0 0 12px" }}>
-            Define os cruzamentos da fase final. Indica quem joga com quem e dá um nome a cada partida.
+            Define a estrutura da fase final: rondas (ex: Meias-Finais, Final) e quem joga com quem em cada partida.
           </p>
           <BracketBuilder
             numGroups={numGroups}
@@ -362,49 +385,60 @@ function FinalsSection({
       {/* Preview of configured bracket (when no matches yet) */}
       {!editing && hasTemplate && finalsMatches.length === 0 && (
         <div style={{ padding: "16px 24px" }}>
-          <p style={{ fontSize: 12, color: "#888", margin: "0 0 12px", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.05em" }}>Cruzamentos configurados</p>
-          {Object.entries(
-            finalsTemplate!.reduce((acc, e) => { (acc[e.round] ??= []).push(e); return acc; }, {} as Record<number, BracketEntry[]>)
-          ).sort(([a], [b]) => Number(a) - Number(b)).map(([round, group]) => (
-            <div key={round} style={{ marginBottom: 16 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#aaa", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Ronda {round}</p>
-              {group.map((e, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#FFFCE8", borderRadius: 8, marginBottom: 6, border: "1px solid #F5E080" }}>
-                  {e.label && <span style={{ fontSize: 11, fontWeight: 700, color: "#7A5900", minWidth: 90 }}>{e.label}</span>}
-                  <span style={{ fontWeight: 700, fontSize: 13, color: "#111" }}>{slotLabel(e.slot1)}</span>
-                  <span style={{ color: "#ccc", fontSize: 12 }}>vs</span>
-                  <span style={{ fontWeight: 700, fontSize: 13, color: "#111" }}>{slotLabel(e.slot2)}</span>
+          <p style={{ fontSize: 12, color: "#888", margin: "0 0 12px", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.05em" }}>Estrutura configurada</p>
+          {templateRounds.map((roundNum) => {
+            const group = finalsTemplate!.filter((e) => e.round === roundNum);
+            const label = roundLabels[roundNum] ?? `Ronda ${roundNum}`;
+            return (
+              <div key={roundNum} style={{ marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 11, fontWeight: 700, background: "#111", color: "#F5C000", borderRadius: 4, padding: "2px 8px", letterSpacing: "0.1em" }}>R{roundNum}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</span>
                 </div>
-              ))}
-            </div>
-          ))}
+                {group.map((e, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#FFFCE8", borderRadius: 8, marginBottom: 6, border: "1px solid #F5E080" }}>
+                    {e.label && <span style={{ fontSize: 11, fontWeight: 700, color: "#7A5900", minWidth: 90 }}>{e.label}</span>}
+                    <span style={{ fontWeight: 700, fontSize: 13, color: "#111" }}>{slotLabel(e.slot1)}</span>
+                    <span style={{ color: "#ccc", fontSize: 12 }}>vs</span>
+                    <span style={{ fontWeight: 700, fontSize: 13, color: "#111" }}>{slotLabel(e.slot2)}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
         </div>
       )}
 
       {/* No template yet */}
       {!editing && !hasTemplate && finalsMatches.length === 0 && (
         <div style={{ padding: "28px 20px", textAlign: "center", color: "#aaa", fontSize: 13 }}>
-          Clica em "Configurar cruzamentos" para definir quem joga com quem na fase final.
+          Clica em "Configurar estrutura" para definir as rondas e cruzamentos da fase final.
         </div>
       )}
 
-      {/* Actual matches */}
+      {/* Actual matches — organised by round */}
       {!editing && finalsMatches.length > 0 && (
         <>
-          {rounds.map((round) => {
+          {existingRounds.map((round) => {
             const roundMatches = finalsMatches.filter((m) => m.round === round);
+            const roundLabel = roundLabels[round] ?? `Ronda ${round}`;
+            const roundComplete = roundMatches.every((m) => m.completedAt);
             return (
               <div key={round}>
-                <div style={{ padding: "7px 16px", background: "#FFFCE8", borderBottom: "1px solid #F5E000", borderTop: round > 1 ? "2px solid #F5E000" : undefined }}>
-                  <span style={{ fontWeight: 700, fontSize: 11, color: "#7A5900", textTransform: "uppercase", letterSpacing: "0.06em" }}>Ronda Final {round}</span>
-                  {durationMinutes && <span style={{ fontSize: 11, color: "#aaa", marginLeft: 8 }}>{durationMinutes} min</span>}
+                <div style={{ padding: "7px 16px", background: "#FFFCE8", borderBottom: "1px solid #F5E000", borderTop: round > existingRounds[0] ? "2px solid #F5E000" : undefined, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 11, fontWeight: 700, background: "#111", color: "#F5C000", borderRadius: 4, padding: "1px 7px", letterSpacing: "0.08em" }}>R{round}</span>
+                    <span style={{ fontWeight: 700, fontSize: 12, color: "#7A5900", textTransform: "uppercase", letterSpacing: "0.06em" }}>{roundLabel}</span>
+                    {roundComplete && <span style={{ fontSize: 11, color: "#4CAF50", fontWeight: 700 }}>✓ Completa</span>}
+                  </div>
+                  {durationMinutes && <span style={{ fontSize: 11, color: "#aaa" }}>{durationMinutes} min</span>}
                 </div>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <tbody>
                     {roundMatches.map((match) => (
                       <tr key={match.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
                         {match.label && (
-                          <td style={{ padding: "0 16px", width: 110 }}>
+                          <td style={{ padding: "0 16px", width: 120 }}>
                             <span style={{ fontSize: 11, fontWeight: 700, color: "#7A5900", background: "#FFFCE8", borderRadius: 4, padding: "2px 7px", border: "1px solid #F5E080" }}>{match.label}</span>
                           </td>
                         )}
@@ -420,7 +454,26 @@ function FinalsSection({
               </div>
             );
           })}
-          <GroupStandings matches={finalsMatches} regs={regs} pairsAdvancing={0} groupLabel="Final" noFinals={true} />
+
+          {/* Advance to next round */}
+          {currentRoundComplete && nextTemplateRound && (
+            <div style={{ padding: "16px 24px", borderTop: "2px solid #F5E000", background: "#FFFCE8", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <span style={{ fontWeight: 700, fontSize: 14, color: "#7A5900" }}>Ronda anterior completa!</span>
+                <p style={{ fontSize: 12, color: "#8A6800", margin: "2px 0 0" }}>
+                  Gera agora as partidas de <strong>{nextRoundLabel}</strong> com base nos vencedores.
+                </p>
+              </div>
+              <button onClick={handleAdvance} disabled={pending} style={{ background: "#111", border: "none", borderRadius: 8, padding: "9px 20px", fontWeight: 700, fontSize: 13, color: "#F5C000", cursor: "pointer" }}>
+                {pending ? "A gerar…" : `Avançar para ${nextRoundLabel} →`}
+              </button>
+            </div>
+          )}
+
+          {/* Final standings — only when all rounds done and no more rounds in template */}
+          {!nextTemplateRound && (
+            <GroupStandings matches={finalsMatches} regs={regs} pairsAdvancing={0} groupLabel="Fase Final" noFinals={true} />
+          )}
         </>
       )}
     </div>
