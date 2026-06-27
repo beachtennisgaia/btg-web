@@ -5,6 +5,9 @@ import { generateNonStopSchedule, updateNonStopResult, resetBracket } from "@/li
 
 type Registration = {
   id: string;
+  status: string;
+  player1Id: string;
+  player2Id: string | null;
   player1: { name: string };
   player2: { name: string } | null;
 };
@@ -98,9 +101,14 @@ function GameRow({ match, regs }: { match: Match; regs: Registration[] }) {
 }
 
 function Standings({ matches, regs }: { matches: Match[]; regs: Registration[] }) {
-  const totals: Record<string, { games: number; wins: number; played: number }> = {};
+  // Exclude solo registrations absorbed by the draw (cancelled + their player1Id is another reg's player2Id)
+  const player2Ids = new Set(regs.filter((r) => r.player2Id).map((r) => r.player2Id!));
+  const activeRegs = regs.filter(
+    (r) => r.status === "CONFIRMED" && !(r.player2Id === null && player2Ids.has(r.player1Id))
+  );
 
-  for (const r of regs.filter((r) => r.player2 !== null || r.player1)) {
+  const totals: Record<string, { games: number; wins: number; played: number }> = {};
+  for (const r of activeRegs) {
     totals[r.id] = { games: 0, wins: 0, played: 0 };
   }
 
@@ -118,7 +126,7 @@ function Standings({ matches, regs }: { matches: Match[]; regs: Registration[] }
   }
 
   const ranked = Object.entries(totals)
-    .map(([id, s]) => ({ id, label: pairLabel(id, regs), ...s }))
+    .map(([id, s]) => ({ id, label: pairLabel(id, activeRegs), ...s }))
     .sort((a, b) => b.wins - a.wins || b.games - a.games);
 
   if (ranked.length === 0) return null;
