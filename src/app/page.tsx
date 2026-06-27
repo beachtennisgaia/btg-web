@@ -1,65 +1,135 @@
-import Image from "next/image";
+import Link from "next/link";
+import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="min-h-screen flex flex-col" style={{ fontFamily: "var(--font-inter), sans-serif" }}>
+
+      {/* NAV */}
+      <nav style={{ background: "#111", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", position: "sticky", top: 0, zIndex: 50 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ background: "#F5C000", color: "#111", fontFamily: "var(--font-oswald), sans-serif", fontSize: 22, fontWeight: 700, padding: "4px 10px", borderRadius: 6, letterSpacing: "0.04em" }}>BTG</span>
+          <span style={{ color: "#888", fontSize: 13, fontWeight: 500 }}>Beach Tennis Gaia</span>
+        </div>
+        <div style={{ display: "flex", gap: 28, alignItems: "center" }}>
+          <Link href="/torneios" style={{ color: "#ccc", textDecoration: "none", fontSize: 14 }}>Torneios</Link>
+          <Link href="/ranking" style={{ color: "#ccc", textDecoration: "none", fontSize: 14 }}>Ranking</Link>
+          <Link href="/comunidade" style={{ color: "#ccc", textDecoration: "none", fontSize: 14 }}>Comunidade</Link>
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button style={{ color: "#ccc", background: "transparent", border: "none", fontSize: 14, cursor: "pointer" }}>Entrar</button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <button style={{ background: "#F5C000", color: "#111", fontWeight: 700, fontSize: 14, padding: "8px 18px", borderRadius: 7, border: "none", cursor: "pointer" }}>
+                Tornar-me Sócio
+              </button>
+            </SignUpButton>
+          </SignedOut>
+          <SignedIn>
+            <UserButton afterSignOutUrl="/" />
+          </SignedIn>
+        </div>
+      </nav>
+
+      {/* HERO */}
+      <section style={{ position: "relative", minHeight: 520, display: "flex", alignItems: "center", overflow: "hidden" }}>
+        <img
+          src="https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=1600&q=80"
+          alt=""
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(10,10,10,0.92) 40%, rgba(10,10,10,0.55) 70%, rgba(10,10,10,0.25) 100%)" }} />
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 80, background: "linear-gradient(to bottom, transparent, #111 90%)" }} />
+        <div style={{ position: "relative", zIndex: 1, padding: "80px 32px", maxWidth: 640 }}>
+          <span style={{ background: "#F5C000", color: "#111", fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 99, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            Vila Nova de Gaia
+          </span>
+          <h1 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 58, fontWeight: 700, color: "#fff", margin: "16px 0 8px", lineHeight: 1.05, letterSpacing: "0.02em" }}>
+            BEACH TENNIS<br /><span style={{ color: "#F5C000" }}>GAIA</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p style={{ fontSize: 18, color: "#bbb", margin: "0 0 32px", lineHeight: 1.6 }}>
+            A comunidade de beach tennis de Gaia. Torneios, ranking, convívio e muito mais. Junta-te a nós.
+          </p>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <SignUpButton mode="modal">
+              <button style={{ background: "#F5C000", color: "#111", fontWeight: 700, padding: "14px 28px", borderRadius: 9, border: "none", fontSize: 16, cursor: "pointer" }}>
+                Tornar-me Sócio
+              </button>
+            </SignUpButton>
+            <Link href="/torneios" style={{ background: "rgba(255,255,255,0.1)", color: "#fff", fontWeight: 600, padding: "14px 28px", borderRadius: 9, border: "2px solid rgba(255,255,255,0.25)", fontSize: 16, textDecoration: "none", backdropFilter: "blur(4px)" }}>
+              Ver Torneios
+            </Link>
+          </div>
+          <div style={{ display: "flex", gap: 40, marginTop: 48, paddingTop: 40, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+            {[["87", "Sócios Ativos"], ["24", "Torneios Realizados"], ["3", "Próximos Eventos"]].map(([n, label]) => (
+              <div key={label}>
+                <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 36, fontWeight: 700, color: "#F5C000", margin: 0 }}>{n}</p>
+                <p style={{ fontSize: 13, color: "#888", margin: "4px 0 0" }}>{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* BANNER PRÓXIMO TORNEIO */}
+      <div style={{ background: "#F5C000", padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+        <div>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#8A6800", textTransform: "uppercase", letterSpacing: "0.08em" }}>● Próximo Torneio</span>
+          <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 22, fontWeight: 700, color: "#111", margin: "4px 0 0" }}>
+            TORNEIO DE VERÃO BTG 2026 · 12 JUL · CANIDE
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <Link href="/torneios" style={{ background: "#111", color: "#F5C000", fontWeight: 700, padding: "12px 24px", borderRadius: 8, fontSize: 15, textDecoration: "none", whiteSpace: "nowrap" }}>
+          Inscrever-me Agora
+        </Link>
+      </div>
+
+      {/* RANKING PREVIEW */}
+      <section style={{ padding: "64px 32px", background: "#fff" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 32 }}>
+          <h2 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 30, fontWeight: 700, color: "#111", margin: 0, letterSpacing: "0.03em" }}>RANKING BTG 2026</h2>
+          <Link href="/ranking" style={{ color: "#F5C000", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>Ver ranking completo →</Link>
         </div>
-      </main>
+        <div style={{ background: "#111", borderRadius: 16, overflow: "hidden", maxWidth: 480 }}>
+          <div style={{ padding: "14px 20px", borderBottom: "1px solid #222", display: "flex", justifyContent: "space-between" }}>
+            <span style={{ color: "#888", fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Jogador</span>
+            <span style={{ color: "#888", fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Pontos</span>
+          </div>
+          {[["🥇", "Carlos Ferreira", "1.240", "#F5C000"], ["🥈", "Ana Silva", "1.085", "#F5C000"], ["🥉", "Miguel Oliveira", "920", "#F5C000"]].map(([medal, name, pts, color]) => (
+            <div key={name} style={{ padding: "14px 20px", borderBottom: "1px solid #1a1a1a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>{medal} {name}</span>
+              <span style={{ color: color as string, fontWeight: 700, fontSize: 16 }}>{pts}</span>
+            </div>
+          ))}
+          <div style={{ padding: "14px 20px", textAlign: "center" }}>
+            <Link href="/ranking" style={{ color: "#F5C000", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>Ver ranking completo (87 sócios) →</Link>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section style={{ background: "#F5C000", padding: "64px 32px", textAlign: "center" }}>
+        <h2 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 36, fontWeight: 700, color: "#111", margin: "0 0 12px", letterSpacing: "0.03em" }}>JUNTA-TE AO BTG</h2>
+        <p style={{ fontSize: 17, color: "#5A4000", margin: "0 0 32px", maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
+          Acede a torneios exclusivos, ranking BTG, galeria de fotos e comunidade de beach tennis em Gaia.
+        </p>
+        <SignUpButton mode="modal">
+          <button style={{ background: "#111", color: "#F5C000", fontWeight: 700, padding: "16px 36px", borderRadius: 10, border: "none", fontSize: 17, cursor: "pointer" }}>
+            Tornar-me Sócio BTG
+          </button>
+        </SignUpButton>
+        <p style={{ fontSize: 13, color: "#8A6800", marginTop: 12 }}>Quota anual · Gestão simples · Sem complicações</p>
+      </section>
+
+      {/* FOOTER */}
+      <footer style={{ background: "#111", padding: 32, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ background: "#F5C000", color: "#111", fontFamily: "var(--font-oswald), sans-serif", fontSize: 18, fontWeight: 700, padding: "3px 8px", borderRadius: 5 }}>BTG</span>
+          <span style={{ color: "#555", fontSize: 13 }}>Beach Tennis Gaia · btgaia.pt</span>
+        </div>
+        <p style={{ color: "#555", fontSize: 12, margin: 0 }}>© 2026 BTG. Vila Nova de Gaia, Portugal.</p>
+      </footer>
+
     </div>
   );
 }
