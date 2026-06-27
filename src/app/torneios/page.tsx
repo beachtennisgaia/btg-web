@@ -9,7 +9,21 @@ export default async function TorneiosPage() {
     db.tournament.findMany({
       where: { status: { not: "FINISHED" } },
       orderBy: { date: "asc" },
-      include: { _count: { select: { registrations: true } } },
+      include: {
+        _count: { select: { registrations: true } },
+        registrations: {
+          where: { status: "CONFIRMED" },
+          include: { player1: true, player2: true },
+          orderBy: { createdAt: "asc" },
+        },
+        matches: {
+          include: {
+            pair1: { include: { player1: { select: { name: true } }, player2: { select: { name: true } } } },
+            pair2: { include: { player1: { select: { name: true } }, player2: { select: { name: true } } } },
+          },
+          orderBy: [{ round: "asc" }, { position: "asc" }],
+        },
+      },
     }),
     db.tournament.findMany({
       where: { status: "FINISHED" },

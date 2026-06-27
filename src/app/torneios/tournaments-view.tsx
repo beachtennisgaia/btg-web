@@ -32,10 +32,23 @@ const STATUS_TAB: Record<string, Tab> = {
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-type TournamentWithCount = Tournament & { _count: { registrations: number } };
+type RegWithPlayers = Registration & { player1: PlayerName; player2: PlayerName | null };
+type ActiveMatchPlayer = { name: string };
+type ActiveMatch = {
+  id: string; round: number; position: number; groupNumber: number | null;
+  score1: number | null; score2: number | null; completedAt: Date | null;
+  pair1Id: string | null; pair2Id: string | null;
+  pair1: (Registration & { player1: ActiveMatchPlayer; player2: ActiveMatchPlayer | null }) | null;
+  pair2: (Registration & { player1: ActiveMatchPlayer; player2: ActiveMatchPlayer | null }) | null;
+};
+type ActiveRegistration = Registration & { player1: { name: string; id: string }; player2: { name: string; id: string } | null };
+type TournamentWithCount = Tournament & {
+  _count: { registrations: number };
+  registrations: ActiveRegistration[];
+  matches: ActiveMatch[];
+};
 
 type PlayerName = { name: string };
-type RegWithPlayers = Registration & { player1: PlayerName; player2: PlayerName | null };
 type MatchWithPlayers = {
   id: string; round: number; position: number; groupNumber: number | null;
   label: string | null; score1: number | null; score2: number | null;
@@ -89,6 +102,65 @@ function computeGroupStandings(matches: MatchWithPlayers[], groupNum: number): S
   );
 }
 
+// ── Schedule components ────────────────────────────────────────────────────
+
+function pairLabel(reg: ActiveMatch["pair1"]): string {
+  if (!reg) return "—";
+  return reg.player2 ? `${reg.player1.name} / ${reg.player2.name}` : reg.player1.name;
+}
+
+function ScheduleSection({ matches }: { matches: ActiveMatch[] }) {
+  if (matches.length === 0) return null;
+  const rounds = [...new Set(matches.map((m) => m.round))].sort((a, b) => a - b);
+  return (
+    <div style={{ marginTop: 20 }}>
+      <p style={{ fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" }}>
+        Programa de Jogos
+      </p>
+      {rounds.map((round) => {
+        const roundMatches = matches.filter((m) => m.round === round).sort((a, b) => a.position - b.position);
+        const allDone = roundMatches.every((m) => m.completedAt);
+        const someDone = roundMatches.some((m) => m.completedAt);
+        return (
+          <div key={round} style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 12, fontWeight: 700, background: allDone ? "#F5C000" : someDone ? "#E0E0E0" : "#F0F0F0", color: allDone ? "#111" : "#666", borderRadius: 5, padding: "2px 8px", letterSpacing: "0.06em" }}>
+                RONDA {round}
+              </span>
+              {allDone && <span style={{ fontSize: 10, color: "#4CAF50", fontWeight: 700 }}>✓ Concluída</span>}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {roundMatches.map((m) => {
+                const done = !!m.completedAt;
+                const p1 = pairLabel(m.pair1);
+                const p2 = pairLabel(m.pair2);
+                const p1Won = done && m.score1 != null && m.score2 != null && m.score1 > m.score2;
+                const p2Won = done && m.score1 != null && m.score2 != null && m.score2 > m.score1;
+                return (
+                  <div key={m.id} style={{ background: done ? "#FAFAFA" : "#fff", border: `1px solid ${done ? "#E8E8E8" : "#F0F0F0"}`, borderRadius: 9, padding: "8px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#ccc", width: 16, textAlign: "center", flexShrink: 0 }}>{m.position}</span>
+                    <span style={{ flex: 1, fontSize: 13, textAlign: "right", fontWeight: p1Won ? 700 : 400, color: p1Won ? "#111" : "#555", minWidth: 0 }}>{p1}</span>
+                    <div style={{ flexShrink: 0, minWidth: 60, textAlign: "center" }}>
+                      {done && m.score1 != null && m.score2 != null ? (
+                        <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 15, fontWeight: 700, color: "#111" }}>
+                          {m.score1} – {m.score2}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 11, color: "#ccc", fontWeight: 500 }}>vs</span>
+                      )}
+                    </div>
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: p2Won ? 700 : 400, color: p2Won ? "#111" : "#555", minWidth: 0 }}>{p2}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Card for upcoming / ongoing ────────────────────────────────────────────
 
 function TournamentCard({ t, defaultOpen }: { t: TournamentWithCount; defaultOpen?: boolean }) {
@@ -124,41 +196,63 @@ function TournamentCard({ t, defaultOpen }: { t: TournamentWithCount; defaultOpe
       </div>
 
       {open && (
-        <div style={{ padding: "20px 24px", display: "flex", gap: 48, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {([
-              ["📅", date.toLocaleDateString("pt-PT", { day: "numeric", month: "long", year: "numeric" }) + " · " + date.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })],
-              ["📍", t.location],
-              ["🎾", `${CATEGORY_LABEL[t.category]} · ${FORMAT_LABEL[t.format]}`],
-              ["👥", `Máximo ${t.maxPairs} duplas${t.status === "OPEN" ? ` (${remaining > 0 ? `restam ${remaining} vagas` : "completo"})` : ""}`],
-            ] as [string, string][]).map(([icon, text]) => (
-              <div key={text} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#444" }}>
-                <span>{icon}</span> {text}
-              </div>
-            ))}
-            {t.description && (
-              <p style={{ fontSize: 14, color: "#666", margin: "4px 0 0", maxWidth: 420, lineHeight: 1.6 }}>{t.description}</p>
-            )}
-          </div>
-          {t.status === "OPEN" && (
-            <div style={{ minWidth: 220 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#666", marginBottom: 6 }}>
-                <span>Inscrições</span>
-                <span style={{ fontWeight: 700, color: "#111" }}>{registered} / {t.maxPairs}</span>
-              </div>
-              <div style={{ background: "#F0F0F0", borderRadius: 99, height: 10, overflow: "hidden" }}>
-                <div style={{ width: `${pct}%`, background: "#F5C000", height: "100%", borderRadius: 99 }} />
-              </div>
-              {remaining > 0 && remaining <= 5 && (
-                <p style={{ fontSize: 12, color: "#F59E0B", fontWeight: 600, margin: "8px 0 0" }}>
-                  {remaining === 1 ? "Última vaga!" : `${remaining} vagas restantes!`}
-                </p>
-              )}
-              {remaining === 0 && (
-                <p style={{ fontSize: 12, color: "#d32f2f", fontWeight: 600, margin: "8px 0 0" }}>Torneio completo.</p>
+        <div style={{ padding: "20px 24px" }}>
+          {/* Info + progress row */}
+          <div style={{ display: "flex", gap: 48, flexWrap: "wrap", marginBottom: t.registrations.length > 0 || t.matches.length > 0 ? 20 : 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {([
+                ["📅", date.toLocaleDateString("pt-PT", { day: "numeric", month: "long", year: "numeric" }) + " · " + date.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })],
+                ["📍", t.location],
+                ["🎾", `${CATEGORY_LABEL[t.category]} · ${FORMAT_LABEL[t.format]}`],
+                ["👥", `Máximo ${t.maxPairs} duplas${t.status === "OPEN" ? ` (${remaining > 0 ? `restam ${remaining} vagas` : "completo"})` : ""}`],
+              ] as [string, string][]).map(([icon, text]) => (
+                <div key={text} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#444" }}>
+                  <span>{icon}</span> {text}
+                </div>
+              ))}
+              {t.description && (
+                <p style={{ fontSize: 14, color: "#666", margin: "4px 0 0", maxWidth: 420, lineHeight: 1.6 }}>{t.description}</p>
               )}
             </div>
+            {t.status === "OPEN" && (
+              <div style={{ minWidth: 220 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#666", marginBottom: 6 }}>
+                  <span>Inscrições</span>
+                  <span style={{ fontWeight: 700, color: "#111" }}>{registered} / {t.maxPairs}</span>
+                </div>
+                <div style={{ background: "#F0F0F0", borderRadius: 99, height: 10, overflow: "hidden" }}>
+                  <div style={{ width: `${pct}%`, background: "#F5C000", height: "100%", borderRadius: 99 }} />
+                </div>
+                {remaining > 0 && remaining <= 5 && (
+                  <p style={{ fontSize: 12, color: "#F59E0B", fontWeight: 600, margin: "8px 0 0" }}>
+                    {remaining === 1 ? "Última vaga!" : `${remaining} vagas restantes!`}
+                  </p>
+                )}
+                {remaining === 0 && (
+                  <p style={{ fontSize: 12, color: "#d32f2f", fontWeight: 600, margin: "8px 0 0" }}>Torneio completo.</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Participating pairs */}
+          {t.registrations.length > 0 && (
+            <div style={{ marginBottom: t.matches.length > 0 ? 20 : 0 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 10px" }}>
+                Participantes ({t.registrations.length} duplas)
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 6 }}>
+                {t.registrations.map((reg) => (
+                  <div key={reg.id} style={{ background: "#F9F9F9", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#333", fontWeight: 500 }}>
+                    {reg.player2 ? `${reg.player1.name} / ${reg.player2.name}` : reg.player1.name}
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
+
+          {/* Match schedule */}
+          {t.matches.length > 0 && <ScheduleSection matches={t.matches} />}
         </div>
       )}
     </div>
