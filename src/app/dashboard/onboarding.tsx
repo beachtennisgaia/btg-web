@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 const LEVELS = [
   { value: "BEGINNER", label: "Iniciante" },
@@ -20,6 +21,7 @@ export function Onboarding({ email, name: initialName }: { email: string; name: 
   const [phone, setPhone] = useState("");
   const [level, setLevel] = useState("BEGINNER");
   const [gender, setGender] = useState("");
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -31,7 +33,7 @@ export function Onboarding({ email, name: initialName }: { email: string; name: 
       const res = await fetch("/api/member", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, level, gender: gender || undefined }),
+        body: JSON.stringify({ name, phone, level, gender: gender || undefined, privacyAccepted }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -162,22 +164,44 @@ export function Onboarding({ email, name: initialName }: { email: string; name: 
             </div>
           </div>
 
+          {/* Privacy consent */}
+          <label style={{ display: "flex", gap: 12, alignItems: "flex-start", cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              required
+              checked={privacyAccepted}
+              onChange={(e) => setPrivacyAccepted(e.target.checked)}
+              style={{ marginTop: 3, width: 16, height: 16, flexShrink: 0, accentColor: "#F5C000", cursor: "pointer" }}
+            />
+            <span style={{ fontSize: 13, color: "#555", lineHeight: 1.5 }}>
+              Li e aceito a{" "}
+              <Link
+                href="/privacidade"
+                target="_blank"
+                style={{ color: "#D4A800", fontWeight: 600, textDecoration: "underline" }}
+              >
+                Política de Privacidade
+              </Link>
+              {" "}e autorizo o tratamento dos meus dados pessoais para efeitos de gestão de sócios e organização de torneios. <span style={{ color: "#d32f2f" }}>*</span>
+            </span>
+          </label>
+
           {error && (
             <p style={{ fontSize: 13, color: "#d32f2f", margin: 0, padding: "10px 14px", background: "#ffeaea", borderRadius: 8 }}>{error}</p>
           )}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !privacyAccepted}
             style={{
-              background: loading ? "#ccc" : "#F5C000",
+              background: loading || !privacyAccepted ? "#ccc" : "#F5C000",
               color: "#111",
               fontWeight: 700,
               padding: "14px 0",
               borderRadius: 9,
               border: "none",
               fontSize: 16,
-              cursor: loading ? "not-allowed" : "pointer",
+              cursor: loading || !privacyAccepted ? "not-allowed" : "pointer",
               fontFamily: "var(--font-inter), sans-serif",
             }}
           >

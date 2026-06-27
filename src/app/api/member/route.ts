@@ -7,10 +7,13 @@ export async function POST(req: Request) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const clerkUser = await currentUser();
-  const { name, phone, level, gender } = await req.json();
+  const { name, phone, level, gender, privacyAccepted } = await req.json();
 
   if (!name?.trim()) {
     return NextResponse.json({ error: "Nome obrigatório" }, { status: 400 });
+  }
+  if (!privacyAccepted) {
+    return NextResponse.json({ error: "Tens de aceitar a política de privacidade" }, { status: 400 });
   }
 
   const email = clerkUser?.emailAddresses[0]?.emailAddress ?? "";
@@ -25,6 +28,7 @@ export async function POST(req: Request) {
       level: level ?? "BEGINNER",
       gender: gender ?? null,
       profileComplete: true,
+      privacyAcceptedAt: new Date(),
     },
     update: {
       name: name.trim(),
@@ -32,6 +36,7 @@ export async function POST(req: Request) {
       level: level ?? "BEGINNER",
       gender: gender ?? null,
       profileComplete: true,
+      privacyAcceptedAt: new Date(),
     },
   });
 
