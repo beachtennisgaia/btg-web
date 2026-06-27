@@ -1,6 +1,7 @@
 import { Nav } from "@/components/nav";
 import { db } from "@/lib/db";
 import { auth } from "@clerk/nextjs/server";
+import { ComposeBox } from "./compose-box";
 
 const YEAR = 2026;
 
@@ -71,12 +72,7 @@ export default async function ComunidadePage() {
 
           {/* COMPOSE BOX */}
           {member ? (
-            <div style={{ background: "#fff", borderRadius: 16, padding: "16px 20px", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", border: "2px dashed #eee" }}>
-              <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#F5C000", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#111", flexShrink: 0 }}>
-                {initials(member.name)}
-              </div>
-              <p style={{ margin: 0, fontSize: 14, color: "#aaa" }}>Partilha um momento com a comunidade...</p>
-            </div>
+            <ComposeBox memberName={member.name} />
           ) : (
             <div style={{ background: "#fff", borderRadius: 16, padding: "16px 20px", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", display: "flex", alignItems: "center", gap: 12, border: "2px dashed #eee" }}>
               <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#F0F0F0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>💬</div>

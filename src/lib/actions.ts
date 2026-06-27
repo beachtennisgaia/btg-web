@@ -113,6 +113,17 @@ export async function deleteRankingPoint(memberId: string, tournamentId: string)
 
 // ── COMMUNITY ─────────────────────────────────────────────────
 
+export async function createPost(content: string) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Não autenticado");
+  const member = await db.member.findUnique({ where: { clerkId: userId } });
+  if (!member) throw new Error("Perfil não encontrado");
+  await db.post.create({
+    data: { authorId: member.id, type: "COMMUNITY", content },
+  });
+  revalidatePath("/comunidade");
+}
+
 export async function createAnnouncement(content: string) {
   const admin = await requireAdmin();
   await db.post.create({
