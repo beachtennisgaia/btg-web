@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { upload } from "@vercel/blob/client";
 import { createPost } from "@/lib/actions";
 
 function initials(name: string) {
@@ -46,12 +45,14 @@ export function ComposeBox({ memberName }: { memberName: string }) {
     let photoUrls: string[] = [];
     try {
       photoUrls = await Promise.all(
-        files.map((file) =>
-          upload(`comunidade/${Date.now()}-${file.name}`, file, {
-            access: "public",
-            handleUploadUrl: "/api/upload",
-          }).then((b) => b.url)
-        )
+        files.map(async (file) => {
+          const fd = new FormData();
+          fd.append("file", file);
+          const res = await fetch("/api/upload", { method: "POST", body: fd });
+          if (!res.ok) throw new Error(await res.text());
+          const data = await res.json() as { url: string };
+          return data.url;
+        })
       );
     } finally {
       setUploading(false);

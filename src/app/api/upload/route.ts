@@ -1,4 +1,4 @@
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { put } from "@vercel/blob";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
@@ -6,24 +6,21 @@ export async function POST(request: Request): Promise<NextResponse> {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
-  const body = (await request.json()) as HandleUploadBody;
+  const formData = await request.formData();
+  const file = formData.get("file") as File | null;
+  if (!file) return NextResponse.json({ error: "Ficheiro não encontrado" }, { status: 400 });
 
-  try {
-    const jsonResponse = await handleUpload({
-      body,
-      request,
-      onBeforeGenerateToken: async (pathname) => ({
-        allowedContentTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
-        maximumSizeInBytes: 10 * 1024 * 1024, // 10MB
-        tokenPayload: JSON.stringify({ userId, pathname }),
-      }),
-      onUploadCompleted: async () => {
-        // noop — URL is returned to the client and saved with the post
-      },
-    });
-
-    return NextResponse.json(jsonResponse);
-  } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 400 });
+  const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (!allowed.includes(file.type)) {
+    return NextResponse.json({ error: "Tipo de ficheiro não permitido" }, { status: 400 });
   }
+  if (file.size > 10 * 1024 * 1024) {
+    return NextResponse.json({ error: "Ficheiro demasiado grande (max 10MB)" }, { status: 400 });
+  }
+
+  const blob = await put(`comunidade/${Date.now()}-${file.name}`, file, {
+    access: "public",
+  });
+
+  return NextResponse.json({ url: blob.url });
 }
