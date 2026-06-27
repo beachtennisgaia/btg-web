@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { updateTournamentStatus } from "@/lib/actions";
 import Link from "next/link";
 import { RegistrationsTable } from "./registrations-table";
+import { MatchesSection } from "./matches-section";
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: "Rascunho", OPEN: "Inscrições Abertas", ONGOING: "A Decorrer", FINISHED: "Concluído" };
 const NEXT_STATUS: Record<string, string> = { DRAFT: "OPEN", OPEN: "ONGOING", ONGOING: "FINISHED" };
@@ -16,6 +17,9 @@ export default async function TorneioDetailPage({ params }: { params: Promise<{ 
       registrations: {
         include: { player1: true, player2: true },
         orderBy: { createdAt: "asc" },
+      },
+      matches: {
+        orderBy: [{ round: "asc" }, { position: "asc" }],
       },
     },
   });
@@ -75,12 +79,21 @@ export default async function TorneioDetailPage({ params }: { params: Promise<{ 
             INSCRIÇÕES ({tournament.registrations.length})
           </span>
         </div>
-
         <RegistrationsTable
           registrations={tournament.registrations}
           tournamentStatus={tournament.status}
         />
       </div>
+
+      {/* Matches / Bracket */}
+      {(tournament.status === "ONGOING" || tournament.status === "FINISHED") && (
+        <MatchesSection
+          tournamentId={id}
+          matches={tournament.matches}
+          regs={tournament.registrations}
+          hasConfirmedRegs={tournament.registrations.some((r) => r.status === "CONFIRMED")}
+        />
+      )}
     </div>
   );
 }

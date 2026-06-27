@@ -111,6 +111,104 @@ export async function deleteRankingPoint(memberId: string, tournamentId: string)
   revalidatePath("/ranking");
 }
 
+// ── MATCHES ───────────────────────────────────────────────────
+
+export async function generateBracket(tournamentId: string) {
+  await requireAdmin();
+
+  const existing = await db.match.count({ where: { tournamentId } });
+  if (existing > 0) throw new Error("Bracket já gerado");
+
+  const registrations = await db.registration.findMany({
+    where: { tournamentId, status: "CONFIRMED" },
+    orderBy: { createdAt: "asc" },
+  });
+  if (registrations.length < 2) throw new Error("Mínimo 2 inscrições confirmadas");
+
+  const matches: { tournamentId: string; round: number; position: number; pair1Id: string; pair2Id: string | null; winnerId: string | null; completedAt: Date | null }[] = [];
+  for (let i = 0; i < registrations.length; i += 2) {
+    const pair1 = registrations[i];
+    const pair2 = registrations[i + 1] ?? null;
+    const bye = pair2 === null;
+    matches.push({
+      tournamentId,
+      round: 1,
+      position: Math.floor(i / 2) + 1,
+      pair1Id: pair1.id,
+      pair2Id: pair2?.id ?? null,
+      winnerId: bye ? pair1.id : null,
+      completedAt: bye ? new Date() : null,
+    });
+  }
+
+  await db.match.createMany({ data: matches });
+  revalidatePath(`/admin/torneios/${tournamentId}`);
+  revalidatePath(`/torneios/${tournamentId}`);
+}
+
+export async function generateNextRound(tournamentId: string) {
+  await requireAdmin();
+
+  const allMatches = await db.match.findMany({ where: { tournamentId }, orderBy: [{ round: "desc" }, { position: "asc" }] });
+  const maxRound = allMatches[0]?.round ?? 0;
+  const currentRound = allMatches.filter((m) => m.round === maxRound);
+
+  if (currentRound.some((m) => !m.completedAt)) throw new Error("Ainda há matches por concluir neste round");
+  if (currentRound.length === 1) throw new Error("Torneio já terminado");
+
+  const winners = currentRound.map((m) => m.winnerId).filter(Boolean) as string[];
+  const matches = [];
+  for (let i = 0; i < winners.length; i += 2) {
+    const bye = !winners[i + 1];
+    matches.push({
+      tournamentId,
+      round: maxRound + 1,
+      position: Math.floor(i / 2) + 1,
+      pair1Id: winners[i],
+      pair2Id: winners[i + 1] ?? null,
+      winnerId: bye ? winners[i] : null,
+      completedAt: bye ? new Date() : null,
+    });
+  }
+
+  await db.match.createMany({ data: matches });
+  revalidatePath(`/admin/torneios/${tournamentId}`);
+  revalidatePath(`/torneios/${tournamentId}`);
+}
+
+export async function updateMatchResult(matchId: string, score1: number, score2: number) {
+  await requireAdmin();
+  const match = await db.match.findUnique({ where: { id: matchId } });
+  if (!match) throw new Error("Match não encontrado");
+  if (!match.pair2Id) throw new Error("Match com bye não pode ter resultado");
+
+  const winnerId = score1 > score2 ? match.pair1Id : match.pair2Id;
+  await db.match.update({
+    where: { id: matchId },
+    data: { score1, score2, winnerId, completedAt: new Date() },
+  });
+  revalidatePath(`/admin/torneios/${match.tournamentId}`);
+  revalidatePath(`/torneios/${match.tournamentId}`);
+}
+
+export async function resetMatch(matchId: string) {
+  await requireAdmin();
+  const match = await db.match.findUnique({ where: { id: matchId } });
+  if (!match) throw new Error("Match não encontrado");
+
+  // Cannot reset if there's a next round that uses this match's winner
+  const nextRoundMatch = await db.match.findFirst({
+    where: { tournamentId: match.tournamentId, round: match.round + 1, pair1Id: match.winnerId ?? undefined },
+  });
+  const nextRoundMatch2 = await db.match.findFirst({
+    where: { tournamentId: match.tournamentId, round: match.round + 1, pair2Id: match.winnerId ?? undefined },
+  });
+  if (nextRoundMatch || nextRoundMatch2) throw new Error("Já existe um round seguinte com este resultado");
+
+  await db.match.update({ where: { id: matchId }, data: { score1: null, score2: null, winnerId: null, completedAt: null } });
+  revalidatePath(`/admin/torneios/${match.tournamentId}`);
+}
+
 // ── COMMUNITY ─────────────────────────────────────────────────
 
 export async function toggleLike(postId: string) {
