@@ -70,6 +70,8 @@ model Member {
   registrationsAsP1 Registration[] @relation("Player1")
   registrationsAsP2 Registration[] @relation("Player2")
   posts             Post[]
+  comments          Comment[]
+  postLikes         PostLike[]
   rankingPoints     RankingPoint[]
 }
 
@@ -127,15 +129,37 @@ model Match {
 }
 
 model Post {
-  id        String   @id @default(cuid())
-  author    Member   @relation(fields: [authorId], references: [id])
+  id        String     @id @default(cuid())
+  author    Member     @relation(fields: [authorId], references: [id])
   authorId  String
-  type      PostType @default(COMMUNITY)
+  type      PostType   @default(COMMUNITY)
   content   String
   photos    Photo[]
-  likes     Int      @default(0)
+  likes     PostLike[]
+  comments  Comment[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  member    Member   @relation(fields: [memberId], references: [id])
+  memberId  String
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  @@unique([postId, memberId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  author    Member   @relation(fields: [authorId], references: [id])
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
 }
 
 model Photo {

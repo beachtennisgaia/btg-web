@@ -113,6 +113,36 @@ export async function deleteRankingPoint(memberId: string, tournamentId: string)
 
 // ── COMMUNITY ─────────────────────────────────────────────────
 
+export async function toggleLike(postId: string) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Não autenticado");
+  const member = await db.member.findUnique({ where: { clerkId: userId } });
+  if (!member) throw new Error("Perfil não encontrado");
+
+  const existing = await db.postLike.findUnique({
+    where: { postId_memberId: { postId, memberId: member.id } },
+  });
+  if (existing) {
+    await db.postLike.delete({ where: { id: existing.id } });
+  } else {
+    await db.postLike.create({ data: { postId, memberId: member.id } });
+  }
+  revalidatePath("/comunidade");
+}
+
+export async function createComment(postId: string, content: string) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Não autenticado");
+  const member = await db.member.findUnique({ where: { clerkId: userId } });
+  if (!member) throw new Error("Perfil não encontrado");
+  if (!content.trim()) throw new Error("Comentário vazio");
+
+  await db.comment.create({
+    data: { postId, authorId: member.id, content: content.trim() },
+  });
+  revalidatePath("/comunidade");
+}
+
 export async function createPost(content: string) {
   const { userId } = await auth();
   if (!userId) throw new Error("Não autenticado");

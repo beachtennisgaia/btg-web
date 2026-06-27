@@ -2,6 +2,7 @@ import { Nav } from "@/components/nav";
 import { db } from "@/lib/db";
 import { auth } from "@clerk/nextjs/server";
 import { ComposeBox } from "./compose-box";
+import { PostCard } from "./post-card";
 
 const YEAR = 2026;
 
@@ -11,24 +12,20 @@ const EVENTS = [
   { day: "20", month: "SET", title: "Convívio Anual BTG", sub: "Local a confirmar", highlight: false },
 ];
 
-function timeAgo(date: Date) {
-  const mins = Math.floor((Date.now() - date.getTime()) / 60000);
-  if (mins < 60) return `há ${mins} min`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `há ${hrs}h`;
-  return `há ${Math.floor(hrs / 24)}d`;
-}
-
-function initials(name: string) {
-  return name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-}
-
 export default async function ComunidadePage() {
   const { userId } = await auth();
 
   const [posts, members] = await Promise.all([
     db.post.findMany({
-      include: { author: true, photos: true },
+      include: {
+        author: true,
+        photos: true,
+        likes: { select: { memberId: true } },
+        comments: {
+          include: { author: { select: { name: true, avatarUrl: true } } },
+          orderBy: { createdAt: "asc" },
+        },
+      },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
@@ -48,7 +45,6 @@ export default async function ComunidadePage() {
 
   const isEmpty = posts.length === 0;
 
-  // Find the logged-in member record (if any)
   const member = userId
     ? await db.member.findUnique({ where: { clerkId: userId } })
     : null;
@@ -96,54 +92,9 @@ export default async function ComunidadePage() {
           )}
 
           {/* POSTS */}
-          {posts.map((post) => {
-            const isAdmin = post.author.role === "ADMIN";
-            return (
-              <div key={post.id} style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}>
-                <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    {post.author.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={post.author.avatarUrl} alt="" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover" }} />
-                    ) : (
-                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: isAdmin ? "#111" : "#F5C000", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: isAdmin ? "#F5C000" : "#111" }}>
-                        {isAdmin ? "BTG" : initials(post.author.name)}
-                      </div>
-                    )}
-                    <div>
-                      <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: "#111" }}>
-                        {isAdmin ? "Beach Tennis Gaia" : post.author.name}
-                      </p>
-                      <p style={{ margin: 0, fontSize: 12, color: "#888" }}>
-                        {isAdmin ? "Direção BTG" : "Sócio BTG"} · {timeAgo(post.createdAt)}
-                      </p>
-                    </div>
-                  </div>
-                  <span style={{ background: post.type === "ANNOUNCEMENT" ? "#F5C000" : "#F0F0F0", color: post.type === "ANNOUNCEMENT" ? "#111" : "#555", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 99 }}>
-                    {post.type === "ANNOUNCEMENT" ? "Anúncio" : "Comunidade"}
-                  </span>
-                </div>
-
-                {/* Photos */}
-                {post.photos.length > 0 && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={post.photos[0].url} alt="" style={{ width: "100%", height: 240, objectFit: "cover", display: "block" }} />
-                )}
-
-                <div style={{ padding: "16px 20px" }}>
-                  <p style={{ margin: "0 0 12px", fontSize: 15, color: "#333", lineHeight: 1.6 }}>{post.content}</p>
-                  <div style={{ display: "flex", gap: 12, paddingTop: 12, borderTop: "1px solid #f0f0f0" }}>
-                    <button style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 6, color: "#888", fontSize: 14, cursor: "pointer", padding: 0 }}>
-                      👍 <span style={{ fontWeight: 600, color: "#555" }}>{post.likes}</span>
-                    </button>
-                    <button style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 6, color: "#888", fontSize: 14, cursor: "pointer", padding: 0 }}>
-                      💬
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {posts.map((post) => (
+            <PostCard key={post.id} post={post} memberId={member?.id ?? null} />
+          ))}
         </div>
 
         {/* SIDEBAR */}
