@@ -47,6 +47,31 @@ export async function deleteTournament(id: string) {
   revalidatePath("/torneios");
 }
 
+export async function duplicateTournament(id: string): Promise<string> {
+  await requireAdmin();
+  const src = await db.tournament.findUniqueOrThrow({ where: { id } });
+  const copy = await db.tournament.create({
+    data: {
+      name: `${src.name} (Cópia)`,
+      date: src.date,
+      location: src.location,
+      format: src.format,
+      category: src.category,
+      registrationType: src.registrationType,
+      maxPairs: src.maxPairs,
+      description: src.description,
+      status: "DRAFT",
+      durationMinutes: src.durationMinutes,
+      totalDurationMinutes: src.totalDurationMinutes,
+      numGroups: src.numGroups,
+      pairsAdvancing: src.pairsAdvancing,
+      finalsTemplate: src.finalsTemplate ?? undefined,
+    },
+  });
+  revalidatePath("/admin/torneios");
+  return copy.id;
+}
+
 // ── REGISTRATIONS ─────────────────────────────────────────────
 
 export async function cancelOwnRegistration(id: string) {

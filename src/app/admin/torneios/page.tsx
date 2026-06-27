@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import Link from "next/link";
 import { updateTournamentStatus } from "@/lib/actions";
 import { DeleteTournamentButton } from "./delete-button";
+import { DuplicateTournamentButton } from "./duplicate-button";
 
 const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
   DRAFT:    { label: "Rascunho",   color: "#888", bg: "#F0F0F0" },
@@ -77,6 +78,7 @@ export default async function AdminTorneiosPage() {
                       </button>
                     </form>
                   )}
+                  <DuplicateTournamentButton id={t.id} />
                   {t.status === "DRAFT" && <DeleteTournamentButton id={t.id} />}
                 </div>
               </div>

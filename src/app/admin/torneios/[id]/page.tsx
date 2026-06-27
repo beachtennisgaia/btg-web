@@ -6,6 +6,7 @@ import { RegistrationsTable } from "./registrations-table";
 import { MatchesSection } from "./matches-section";
 import { NonStopSection } from "./non-stop-section";
 import { DrawSection } from "./draw-section";
+import { DuplicateTournamentButton } from "../duplicate-button";
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: "Rascunho", OPEN: "Inscrições Abertas", ONGOING: "A Decorrer", FINISHED: "Concluído" };
 const NEXT_STATUS: Record<string, string> = { DRAFT: "OPEN", OPEN: "ONGOING", ONGOING: "FINISHED" };
@@ -48,6 +49,7 @@ export default async function TorneioDetailPage({ params }: { params: Promise<{ 
             <Link href={`/admin/torneios/${id}/editar`} style={{ background: "#F0F0F0", color: "#333", fontWeight: 600, padding: "9px 18px", borderRadius: 8, fontSize: 13, textDecoration: "none" }}>
               Editar
             </Link>
+            <DuplicateTournamentButton id={id} />
             {next && (
               <form action={updateTournamentStatus.bind(null, id, next)}>
                 <button type="submit" style={{ background: "#F5C000", color: "#111", fontWeight: 700, padding: "9px 18px", borderRadius: 8, border: "none", fontSize: 13, cursor: "pointer" }}>
