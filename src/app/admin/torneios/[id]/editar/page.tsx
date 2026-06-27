@@ -9,7 +9,7 @@ export default async function EditarTorneioPage({ params }: { params: Promise<{ 
   if (!tournament) notFound();
 
   return (
-    <div style={{ padding: 32, maxWidth: 640 }}>
+    <div style={{ padding: 32, maxWidth: 1140 }}>
       <div style={{ marginBottom: 24 }}>
         <Link href={`/admin/torneios/${id}`} style={{ fontSize: 13, color: "#888", textDecoration: "none" }}>
           ← {tournament.name}
