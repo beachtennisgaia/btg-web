@@ -3,14 +3,6 @@
 import { useState } from "react";
 import type { Tournament, Registration } from "@prisma/client";
 
-type Tab = "proximos" | "decorrer" | "historico";
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "proximos", label: "Próximos" },
-  { id: "decorrer", label: "A Decorrer" },
-  { id: "historico", label: "Histórico" },
-];
-
 const FORMAT_LABEL: Record<string, string> = {
   ELIMINATION: "Eliminatório",
   NON_STOP: "Non-Stop",
@@ -21,13 +13,6 @@ const CATEGORY_LABEL: Record<string, string> = {
   MALE: "Duplas Masculinas",
   FEMALE: "Duplas Femininas",
   OPEN: "Open",
-};
-
-const STATUS_TAB: Record<string, Tab> = {
-  DRAFT: "proximos",
-  OPEN: "proximos",
-  ONGOING: "decorrer",
-  FINISHED: "historico",
 };
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -478,20 +463,16 @@ function MatchRow({ m, maxRound, registrationType, isPool }: {
   );
 }
 
-// ── Empty state ────────────────────────────────────────────────────────────
+// ── Section header ─────────────────────────────────────────────────────────
 
-function EmptyTab({ tab }: { tab: Tab }) {
-  const messages: Record<Tab, { emoji: string; title: string; sub: string }> = {
-    proximos: { emoji: "📅", title: "SEM TORNEIOS AGENDADOS", sub: "Ainda não há torneios abertos. Volta em breve!" },
-    decorrer: { emoji: "🎾", title: "NENHUM TORNEIO A DECORRER", sub: "De momento não há torneios em curso." },
-    historico: { emoji: "🏆", title: "SEM HISTÓRICO", sub: "Os resultados de torneios concluídos aparecerão aqui." },
-  };
-  const { emoji, title, sub } = messages[tab];
+function SectionHeader({ label, count }: { label: string; count: number }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 20, padding: "56px 32px", textAlign: "center", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
-      <p style={{ fontSize: 48, margin: "0 0 16px" }}>{emoji}</p>
-      <h2 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 22, fontWeight: 700, color: "#111", margin: "0 0 8px", letterSpacing: "0.03em" }}>{title}</h2>
-      <p style={{ fontSize: 14, color: "#888", margin: 0 }}>{sub}</p>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+      <h2 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 15, fontWeight: 700, color: "#888", margin: 0, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+        {label}
+      </h2>
+      <span style={{ background: "#E8E8E8", color: "#666", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99 }}>{count}</span>
+      <div style={{ flex: 1, height: 1, background: "#E8E8E8" }} />
     </div>
   );
 }
@@ -505,49 +486,46 @@ export function TournamentsView({
   tournaments: TournamentWithCount[];
   finishedTournaments: FinishedTournament[];
 }) {
-  const [tab, setTab] = useState<Tab>("proximos");
+  const ongoing  = tournaments.filter((t) => t.status === "ONGOING");
+  const upcoming = tournaments.filter((t) => t.status === "OPEN" || t.status === "DRAFT");
+  const firstOpenIdx = upcoming.findIndex((t) => t.status === "OPEN");
 
-  const nonFinished = tournaments.filter((t) => STATUS_TAB[t.status] === tab);
-  const firstOpen = tab === "proximos" ? nonFinished.findIndex((t) => t.status === "OPEN") : -1;
+  const hasAnything = ongoing.length + upcoming.length + finishedTournaments.length > 0;
 
-  const counts: Record<Tab, number> = {
-    proximos: tournaments.filter((t) => STATUS_TAB[t.status] === "proximos").length,
-    decorrer: tournaments.filter((t) => STATUS_TAB[t.status] === "decorrer").length,
-    historico: finishedTournaments.length,
-  };
+  if (!hasAnything) {
+    return (
+      <div className="btg-tournaments-content">
+        <div style={{ background: "#fff", borderRadius: 20, padding: "56px 32px", textAlign: "center", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
+          <p style={{ fontSize: 48, margin: "0 0 16px" }}>🎾</p>
+          <h2 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 22, fontWeight: 700, color: "#111", margin: "0 0 8px" }}>EM BREVE</h2>
+          <p style={{ fontSize: 14, color: "#888", margin: 0 }}>Os próximos torneios BTG serão anunciados aqui.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <div className="btg-tournaments-tabs" style={{ background: "#fff", borderBottom: "1px solid #eee", display: "flex" }}>
-        {TABS.map(({ id, label }) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            style={{ padding: "16px 24px", fontSize: 14, fontWeight: tab === id ? 700 : 500, color: tab === id ? "#111" : "#888", border: "none", background: "transparent", borderBottom: tab === id ? "3px solid #F5C000" : "3px solid transparent", cursor: "pointer" }}
-          >
-            {label}
-            {counts[id] > 0 && (
-              <span style={{ marginLeft: 6, background: tab === id ? "#F5C000" : "#F0F0F0", color: tab === id ? "#111" : "#888", fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 99 }}>
-                {counts[id]}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+    <div className="btg-tournaments-content">
+      {ongoing.length > 0 && (
+        <div style={{ marginBottom: 40 }}>
+          <SectionHeader label="A Decorrer" count={ongoing.length} />
+          {ongoing.map((t) => <TournamentCard key={t.id} t={t} defaultOpen />)}
+        </div>
+      )}
 
-      <div className="btg-tournaments-content">
-        {tab === "historico" ? (
-          finishedTournaments.length === 0 ? (
-            <EmptyTab tab="historico" />
-          ) : (
-            finishedTournaments.map((t) => <FinishedTournamentCard key={t.id} t={t} />)
-          )
-        ) : nonFinished.length === 0 ? (
-          <EmptyTab tab={tab} />
-        ) : (
-          nonFinished.map((t, i) => <TournamentCard key={t.id} t={t} defaultOpen={i === firstOpen} />)
-        )}
-      </div>
-    </>
+      {upcoming.length > 0 && (
+        <div style={{ marginBottom: 40 }}>
+          <SectionHeader label="Próximos" count={upcoming.length} />
+          {upcoming.map((t, i) => <TournamentCard key={t.id} t={t} defaultOpen={i === firstOpenIdx} />)}
+        </div>
+      )}
+
+      {finishedTournaments.length > 0 && (
+        <div>
+          <SectionHeader label="Histórico" count={finishedTournaments.length} />
+          {finishedTournaments.map((t) => <FinishedTournamentCard key={t.id} t={t} />)}
+        </div>
+      )}
+    </div>
   );
 }
