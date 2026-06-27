@@ -12,23 +12,97 @@ interface Props {
   members: Member[];
 }
 
-export function RegistrationForm({ tournamentId, memberId, registrationType, members }: Props) {
-  const router = useRouter();
-  const [partnerId, setPartnerId] = useState("");
+function PartnerPicker({
+  members,
+  partnerId,
+  setPartnerId,
+  required,
+}: {
+  members: Member[];
+  partnerId: string;
+  setPartnerId: (id: string) => void;
+  required: boolean;
+}) {
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
-
+  const selectedPartner = members.find((m) => m.id === partnerId);
   const filtered = members.filter((m) =>
     search.trim().length > 0 ? m.name.toLowerCase().includes(search.toLowerCase()) : true
   );
 
-  const selectedPartner = members.find((m) => m.id === partnerId);
+  return (
+    <div>
+      <label style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 8, display: "block", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+        Parceiro {required ? "*" : "(opcional)"}
+      </label>
+
+      {selectedPartner ? (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#FFFDE7", border: "2px solid #F5C000", borderRadius: 10, padding: "12px 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 99, background: "#F5C000", color: "#111", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              {selectedPartner.name.slice(0, 2).toUpperCase()}
+            </div>
+            <div>
+              <p style={{ fontWeight: 700, fontSize: 14, color: "#111", margin: 0 }}>{selectedPartner.name}</p>
+              <p style={{ fontSize: 11, color: "#888", margin: "1px 0 0" }}>Parceiro selecionado</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setPartnerId(""); setSearch(""); }}
+            style={{ background: "none", border: "none", color: "#888", fontSize: 18, cursor: "pointer", padding: 4 }}
+          >
+            ×
+          </button>
+        </div>
+      ) : (
+        <div>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Escreve o nome do parceiro…"
+            style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e0e0", borderRadius: 8, fontSize: 14, fontFamily: "var(--font-inter), sans-serif", outline: "none", boxSizing: "border-box" }}
+          />
+          {search.trim().length > 0 && (
+            <div style={{ border: "1.5px solid #e0e0e0", borderTop: "none", borderRadius: "0 0 8px 8px", maxHeight: 220, overflowY: "auto", background: "#fff" }}>
+              {filtered.length === 0 ? (
+                <p style={{ padding: "12px 14px", fontSize: 13, color: "#888", margin: 0 }}>Nenhum sócio encontrado com esse nome.</p>
+              ) : (
+                filtered.slice(0, 8).map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => { setPartnerId(m.id); setSearch(""); }}
+                    style={{ width: "100%", textAlign: "left", padding: "11px 14px", background: "none", border: "none", borderBottom: "1px solid #f0f0f0", cursor: "pointer", fontSize: 14, color: "#111", display: "flex", alignItems: "center", gap: 10 }}
+                  >
+                    <div style={{ width: 30, height: 30, borderRadius: 99, background: "#111", color: "#fff", fontWeight: 700, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {m.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    {m.name}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function RegistrationForm({ tournamentId, registrationType, members }: Props) {
+  const router = useRouter();
+  const [partnerId, setPartnerId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const isPairs = registrationType === "PAIRS";
+  const withPartner = partnerId !== "";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (registrationType === "PAIRS" && !partnerId) {
+    if (isPairs && !partnerId) {
       setError("Seleciona o teu parceiro antes de submeter.");
       return;
     }
@@ -38,7 +112,7 @@ export function RegistrationForm({ tournamentId, memberId, registrationType, mem
       const res = await fetch(`/api/torneios/${tournamentId}/inscricao`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ partnerId: registrationType === "PAIRS" ? partnerId : null }),
+        body: JSON.stringify({ partnerId: partnerId || null }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao submeter inscrição");
@@ -69,73 +143,26 @@ export function RegistrationForm({ tournamentId, memberId, registrationType, mem
   return (
     <div style={{ background: "#fff", borderRadius: 16, padding: 28, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
       <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 18, fontWeight: 700, color: "#111", margin: "0 0 4px" }}>
-        {registrationType === "PAIRS" ? "INSCRIÇÃO EM DUPLA" : "INSCRIÇÃO INDIVIDUAL"}
+        {isPairs ? "INSCRIÇÃO EM DUPLA" : "INSCRIÇÃO INDIVIDUAL"}
       </p>
       <p style={{ fontSize: 13, color: "#888", margin: "0 0 24px" }}>
-        {registrationType === "PAIRS"
+        {isPairs
           ? "Escolhe o teu parceiro para este torneio. Ambos ficarão inscritos."
-          : "Confirma a tua inscrição individual neste torneio."}
+          : "Podes inscrever-te sozinho ou indicar um parceiro."}
       </p>
 
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        {registrationType === "PAIRS" && (
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 8, display: "block", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Pesquisar parceiro *
-            </label>
+        <PartnerPicker
+          members={members}
+          partnerId={partnerId}
+          setPartnerId={setPartnerId}
+          required={isPairs}
+        />
 
-            {selectedPartner ? (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#FFFDE7", border: "2px solid #F5C000", borderRadius: 10, padding: "12px 16px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 99, background: "#F5C000", color: "#111", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    {selectedPartner.name.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <p style={{ fontWeight: 700, fontSize: 14, color: "#111", margin: 0 }}>{selectedPartner.name}</p>
-                    <p style={{ fontSize: 11, color: "#888", margin: "1px 0 0" }}>Parceiro selecionado</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { setPartnerId(""); setSearch(""); }}
-                  style={{ background: "none", border: "none", color: "#888", fontSize: 18, cursor: "pointer", padding: 4 }}
-                >
-                  ×
-                </button>
-              </div>
-            ) : (
-              <div>
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Escreve o nome do parceiro…"
-                  style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #e0e0e0", borderRadius: 8, fontSize: 14, fontFamily: "var(--font-inter), sans-serif", outline: "none", boxSizing: "border-box" }}
-                />
-                {search.trim().length > 0 && (
-                  <div style={{ border: "1.5px solid #e0e0e0", borderTop: "none", borderRadius: "0 0 8px 8px", maxHeight: 220, overflowY: "auto", background: "#fff" }}>
-                    {filtered.length === 0 ? (
-                      <p style={{ padding: "12px 14px", fontSize: 13, color: "#888", margin: 0 }}>Nenhum sócio encontrado com esse nome.</p>
-                    ) : (
-                      filtered.slice(0, 8).map((m) => (
-                        <button
-                          key={m.id}
-                          type="button"
-                          onClick={() => { setPartnerId(m.id); setSearch(""); }}
-                          style={{ width: "100%", textAlign: "left", padding: "11px 14px", background: "none", border: "none", borderBottom: "1px solid #f0f0f0", cursor: "pointer", fontSize: 14, color: "#111", display: "flex", alignItems: "center", gap: 10 }}
-                        >
-                          <div style={{ width: 30, height: 30, borderRadius: 99, background: "#111", color: "#fff", fontWeight: 700, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            {m.name.slice(0, 2).toUpperCase()}
-                          </div>
-                          {m.name}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+        {!isPairs && !withPartner && (
+          <p style={{ fontSize: 12, color: "#888", background: "#F9F9F9", padding: "10px 14px", borderRadius: 8, margin: 0 }}>
+            Sem parceiro indicado, ficarás inscrito individualmente.
+          </p>
         )}
 
         {error && (
@@ -146,14 +173,18 @@ export function RegistrationForm({ tournamentId, memberId, registrationType, mem
 
         <button
           type="submit"
-          disabled={loading || (registrationType === "PAIRS" && !partnerId)}
+          disabled={loading || (isPairs && !partnerId)}
           style={{
-            background: loading || (registrationType === "PAIRS" && !partnerId) ? "#ddd" : "#F5C000",
+            background: loading || (isPairs && !partnerId) ? "#ddd" : "#F5C000",
             color: "#111", fontWeight: 700, padding: "14px 0", borderRadius: 9, border: "none", fontSize: 15,
-            cursor: loading || (registrationType === "PAIRS" && !partnerId) ? "not-allowed" : "pointer",
+            cursor: loading || (isPairs && !partnerId) ? "not-allowed" : "pointer",
           }}
         >
-          {loading ? "A submeter…" : registrationType === "PAIRS" ? "Inscrever dupla" : "Confirmar inscrição"}
+          {loading
+            ? "A submeter…"
+            : withPartner
+            ? "Inscrever dupla"
+            : "Confirmar inscrição individual"}
         </button>
 
         <p style={{ fontSize: 12, color: "#aaa", textAlign: "center", margin: 0 }}>
