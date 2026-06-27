@@ -242,6 +242,84 @@ export async function resetBracket(tournamentId: string) {
   revalidatePath(`/admin/torneios/${tournamentId}`);
 }
 
+function circleRoundRobin(
+  ids: string[],
+  totalRounds: number,
+  groupNumber: number | null,
+  tournamentId: string
+) {
+  const list = [...ids];
+  if (list.length % 2 !== 0) list.push("bye");
+  const n = list.length;
+  const fixed = list[0];
+  const rotating = list.slice(1);
+  const courts = n / 2;
+  const rounds = Math.min(totalRounds, n - 1);
+
+  const matchData: {
+    tournamentId: string;
+    round: number;
+    position: number;
+    court: number;
+    groupNumber: number | null;
+    pair1Id: string | null;
+    pair2Id: string | null;
+    winnerId: null;
+    completedAt: null;
+  }[] = [];
+
+  for (let round = 0; round < rounds; round++) {
+    const roundPairs: [string, string][] = [[fixed, rotating[0]]];
+    for (let i = 1; i < courts; i++) {
+      roundPairs.push([rotating[i], rotating[n - 1 - i]]);
+    }
+    roundPairs.forEach(([a, b], courtIdx) => {
+      if (a === "bye" || b === "bye") return;
+      matchData.push({
+        tournamentId,
+        round: round + 1,
+        position: courtIdx + 1,
+        court: courtIdx + 1,
+        groupNumber,
+        pair1Id: a,
+        pair2Id: b,
+        winnerId: null,
+        completedAt: null,
+      });
+    });
+    rotating.unshift(rotating.pop()!);
+  }
+  return matchData;
+}
+
+export async function assignGroups(tournamentId: string) {
+  await requireAdmin();
+  const tournament = await db.tournament.findUnique({
+    where: { id: tournamentId },
+    select: { numGroups: true },
+  });
+  const numGroups = tournament?.numGroups ?? 1;
+  if (numGroups <= 1) throw new Error("Este torneio não tem grupos configurados");
+
+  const registrations = await db.registration.findMany({
+    where: { tournamentId, status: "CONFIRMED", player2Id: { not: null } },
+    orderBy: { createdAt: "asc" },
+  });
+  if (registrations.length < numGroups) throw new Error("Duplas insuficientes para distribuir pelos grupos");
+
+  // Shuffle and round-robin assign group numbers
+  const shuffled = [...registrations].sort(() => Math.random() - 0.5);
+  await db.$transaction(
+    shuffled.map((reg, i) =>
+      db.registration.update({
+        where: { id: reg.id },
+        data: { groupNumber: (i % numGroups) + 1 },
+      })
+    )
+  );
+  revalidatePath(`/admin/torneios/${tournamentId}`);
+}
+
 export async function generateNonStopSchedule(tournamentId: string) {
   await requireAdmin();
 
@@ -249,67 +327,40 @@ export async function generateNonStopSchedule(tournamentId: string) {
 
   const tournament = await db.tournament.findUnique({
     where: { id: tournamentId },
-    select: { durationMinutes: true, totalDurationMinutes: true },
+    select: { durationMinutes: true, totalDurationMinutes: true, numGroups: true },
   });
 
-  const registrations = await db.registration.findMany({
+  const numGroups = tournament?.numGroups ?? 1;
+
+  const allRegs = await db.registration.findMany({
     where: { tournamentId, status: "CONFIRMED" },
     orderBy: { createdAt: "asc" },
   });
-  if (registrations.length < 2) throw new Error("Mínimo 2 duplas confirmadas");
+  if (allRegs.length < 2) throw new Error("Mínimo 2 duplas confirmadas");
 
-  // Circle method for balanced round-robin
-  const ids = registrations.map((r) => r.id);
-  if (ids.length % 2 !== 0) ids.push("bye"); // ghost for odd count
-  const n = ids.length;
-  const fixed = ids[0];
-  const rotating = ids.slice(1);
-  const courts = n / 2;
-
-  // Limit rounds to what fits in the event duration (or full round-robin if not set)
-  const maxPossibleRounds = n - 1;
-  const totalRounds =
+  const maxRoundsFromTime =
     tournament?.durationMinutes && tournament?.totalDurationMinutes
-      ? Math.min(Math.floor(tournament.totalDurationMinutes / tournament.durationMinutes), maxPossibleRounds)
-      : maxPossibleRounds;
+      ? Math.floor(tournament.totalDurationMinutes / tournament.durationMinutes)
+      : 999;
 
-  const matchData: {
-    tournamentId: string;
-    round: number;
-    position: number;
-    court: number;
-    pair1Id: string | null;
-    pair2Id: string | null;
-    winnerId: null;
-    completedAt: null;
-  }[] = [];
+  let allMatchData: ReturnType<typeof circleRoundRobin> = [];
 
-  for (let round = 0; round < totalRounds; round++) {
-    const roundPairs: [string, string][] = [[fixed, rotating[0]]];
-    for (let i = 1; i < courts; i++) {
-      roundPairs.push([rotating[i], rotating[n - 1 - i]]);
+  if (numGroups > 1) {
+    // Validate all pairs have group assigned
+    const unassigned = allRegs.filter((r) => !r.groupNumber);
+    if (unassigned.length > 0) throw new Error("Distribui as duplas pelos grupos antes de gerar o schedule");
+
+    for (let g = 1; g <= numGroups; g++) {
+      const groupIds = allRegs.filter((r) => r.groupNumber === g).map((r) => r.id);
+      if (groupIds.length < 2) throw new Error(`Grupo ${g} tem menos de 2 duplas`);
+      allMatchData = allMatchData.concat(circleRoundRobin(groupIds, maxRoundsFromTime, g, tournamentId));
     }
-
-    roundPairs.forEach(([a, b], court) => {
-      const hasBye = a === "bye" || b === "bye";
-      if (hasBye) return;
-      matchData.push({
-        tournamentId,
-        round: round + 1,
-        position: court + 1,
-        court: court + 1,
-        pair1Id: a,
-        pair2Id: b,
-        winnerId: null,
-        completedAt: null,
-      });
-    });
-
-    // Rotate: last element comes to front
-    rotating.unshift(rotating.pop()!);
+  } else {
+    const ids = allRegs.map((r) => r.id);
+    allMatchData = circleRoundRobin(ids, maxRoundsFromTime, null, tournamentId);
   }
 
-  await db.match.createMany({ data: matchData });
+  await db.match.createMany({ data: allMatchData });
   revalidatePath(`/admin/torneios/${tournamentId}`);
 }
 

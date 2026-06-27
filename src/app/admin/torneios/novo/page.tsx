@@ -14,6 +14,8 @@ export default function NovoTorneioPage() {
   const [format, setFormat] = useState("ELIMINATION");
   const [durationMinutes, setDurationMinutes] = useState(12);
   const [totalDurationMinutes, setTotalDurationMinutes] = useState(120);
+  const [numGroups, setNumGroups] = useState(1);
+  const [pairsAdvancing, setPairsAdvancing] = useState(0);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -94,8 +96,41 @@ export default function NovoTorneioPage() {
                     onChange={(e) => setTotalDurationMinutes(Number(e.target.value))} />
                 </div>
               </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Número de grupos</label>
+                  <select name="numGroups" style={selectStyle} value={numGroups} onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setNumGroups(v);
+                    if (v <= 1) setPairsAdvancing(0);
+                  }}>
+                    <option value={1}>1 — Pool único</option>
+                    <option value={2}>2 grupos</option>
+                    <option value={3}>3 grupos</option>
+                    <option value={4}>4 grupos</option>
+                  </select>
+                </div>
+                {numGroups > 1 && (
+                  <div>
+                    <label style={labelStyle}>Duplas que avançam por grupo</label>
+                    <select name="pairsAdvancing" style={selectStyle} value={pairsAdvancing} onChange={(e) => setPairsAdvancing(Number(e.target.value))}>
+                      <option value={0}>0 — Sem finais, campeão por grupo</option>
+                      <option value={1}>1 — Top 1 avança para final</option>
+                      <option value={2}>2 — Top 2 avançam para final</option>
+                      <option value={3}>3 — Top 3 avançam para final</option>
+                      <option value={4}>4 — Top 4 avançam para final</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
               <div style={{ background: "#F9F9F9", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#555" }}>
-                <strong>{Math.floor(totalDurationMinutes / (durationMinutes || 1))} rondas</strong> · Quadras = nº de duplas ÷ 2 · Todas as duplas jogam em simultâneo
+                <strong>{Math.floor(totalDurationMinutes / (durationMinutes || 1))} rondas</strong>
+                {numGroups > 1 ? ` por grupo · ${numGroups} grupos independentes` : ""}
+                {numGroups > 1 && pairsAdvancing > 0 ? ` · Top ${pairsAdvancing} de cada grupo avança` : ""}
+                {numGroups > 1 && pairsAdvancing === 0 ? ` · Campeão independente em cada grupo` : ""}
+                {numGroups <= 1 && " · Quadras = nº de duplas ÷ 2 · Todas as duplas jogam em simultâneo"}
               </div>
             </div>
           )}

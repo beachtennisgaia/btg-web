@@ -121,6 +121,8 @@ export default async function TorneioDetailPage({ params }: { params: Promise<{ 
             hasConfirmedRegs={tournament.registrations.some((r) => r.status === "CONFIRMED")}
             durationMinutes={tournament.durationMinutes}
             totalDurationMinutes={tournament.totalDurationMinutes}
+            numGroups={tournament.numGroups}
+            pairsAdvancing={tournament.pairsAdvancing}
           />
         ) : (
           <MatchesSection

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { generateNonStopSchedule, updateNonStopResult, resetBracket } from "@/lib/actions";
+import { generateNonStopSchedule, updateNonStopResult, resetBracket, assignGroups } from "@/lib/actions";
 
 type Registration = {
   id: string;
   status: string;
   player1Id: string;
   player2Id: string | null;
+  groupNumber: number | null;
   player1: { name: string };
   player2: { name: string } | null;
 };
@@ -17,6 +18,7 @@ type Match = {
   round: number;
   position: number;
   court: number | null;
+  groupNumber: number | null;
   pair1Id: string | null;
   pair2Id: string | null;
   score1: number | null;
@@ -30,6 +32,13 @@ function pairLabel(regId: string | null, regs: Registration[]) {
   const r = regs.find((r) => r.id === regId);
   if (!r) return "?";
   return r.player2 ? `${r.player1.name} / ${r.player2.name}` : r.player1.name;
+}
+
+function activeRegs(regs: Registration[]) {
+  const player2Ids = new Set(regs.filter((r) => r.player2Id).map((r) => r.player2Id!));
+  return regs.filter(
+    (r) => r.status === "CONFIRMED" && !(r.player2Id === null && player2Ids.has(r.player1Id))
+  );
 }
 
 function GameRow({ match, regs }: { match: Match; regs: Registration[] }) {
@@ -56,14 +65,14 @@ function GameRow({ match, regs }: { match: Match; regs: Registration[] }) {
     startTransition(async () => {
       try {
         await updateNonStopResult(match.id, 0, 0);
-        // Reset to null state — call resetMatch instead
+        setG1(""); setG2("");
       } catch (e) { setError((e as Error).message); }
     });
   }
 
   return (
     <tr style={{ borderBottom: "1px solid #f5f5f5" }}>
-      <td style={{ padding: "10px 16px", width: 70, textAlign: "center" }}>
+      <td style={{ padding: "10px 16px", width: 60, textAlign: "center" }}>
         <span style={{ fontSize: 11, fontWeight: 700, background: "#F5C000", color: "#111", borderRadius: 6, padding: "2px 8px" }}>
           Q{match.court ?? match.position}
         </span>
@@ -100,70 +109,153 @@ function GameRow({ match, regs }: { match: Match; regs: Registration[] }) {
   );
 }
 
-function Standings({ matches, regs }: { matches: Match[]; regs: Registration[] }) {
-  // Exclude solo registrations absorbed by the draw (cancelled + their player1Id is another reg's player2Id)
-  const player2Ids = new Set(regs.filter((r) => r.player2Id).map((r) => r.player2Id!));
-  const activeRegs = regs.filter(
-    (r) => r.status === "CONFIRMED" && !(r.player2Id === null && player2Ids.has(r.player1Id))
-  );
-
+function GroupStandings({
+  matches,
+  regs,
+  pairsAdvancing,
+  groupLabel,
+  noFinals,
+}: {
+  matches: Match[];
+  regs: Registration[];
+  pairsAdvancing: number;
+  groupLabel: string;
+  noFinals: boolean;
+}) {
   const totals: Record<string, { gamesFor: number; gamesAgainst: number; wins: number; played: number }> = {};
-  for (const r of activeRegs) {
-    totals[r.id] = { gamesFor: 0, gamesAgainst: 0, wins: 0, played: 0 };
-  }
+  for (const r of regs) totals[r.id] = { gamesFor: 0, gamesAgainst: 0, wins: 0, played: 0 };
 
   for (const m of matches.filter((m) => m.completedAt)) {
     if (m.pair1Id && totals[m.pair1Id] !== undefined) {
       totals[m.pair1Id].gamesFor     += m.score1 ?? 0;
       totals[m.pair1Id].gamesAgainst += m.score2 ?? 0;
-      totals[m.pair1Id].played += 1;
-      if ((m.score1 ?? 0) > (m.score2 ?? 0)) totals[m.pair1Id].wins += 1;
+      totals[m.pair1Id].played++;
+      if ((m.score1 ?? 0) > (m.score2 ?? 0)) totals[m.pair1Id].wins++;
     }
     if (m.pair2Id && totals[m.pair2Id] !== undefined) {
       totals[m.pair2Id].gamesFor     += m.score2 ?? 0;
       totals[m.pair2Id].gamesAgainst += m.score1 ?? 0;
-      totals[m.pair2Id].played += 1;
-      if ((m.score2 ?? 0) > (m.score1 ?? 0)) totals[m.pair2Id].wins += 1;
+      totals[m.pair2Id].played++;
+      if ((m.score2 ?? 0) > (m.score1 ?? 0)) totals[m.pair2Id].wins++;
     }
   }
 
   const ranked = Object.entries(totals)
-    .map(([id, s]) => ({ id, label: pairLabel(id, activeRegs), ...s, balance: s.gamesFor - s.gamesAgainst }))
+    .map(([id, s]) => ({ id, label: pairLabel(id, regs), ...s, balance: s.gamesFor - s.gamesAgainst }))
     .sort((a, b) => b.wins - a.wins || b.balance - a.balance);
 
   if (ranked.length === 0) return null;
 
   return (
-    <div style={{ marginTop: 24, background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-      <div style={{ background: "#111", padding: "14px 20px" }}>
-        <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 600, color: "#fff", letterSpacing: "0.04em" }}>
-          CLASSIFICAÇÃO
+    <div>
+      <div style={{ padding: "8px 16px", background: "#F9F9F9", borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontWeight: 700, fontSize: 12, color: "#555", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+          Classificação — {groupLabel}
         </span>
+        {noFinals && <span style={{ fontSize: 11, color: "#F5C000", fontWeight: 700 }}>🏆 Sem finais — campeão independente</span>}
+        {!noFinals && pairsAdvancing > 0 && (
+          <span style={{ fontSize: 11, color: "#888" }}>
+            Top {pairsAdvancing} avança{pairsAdvancing === 1 ? "" : "m"}
+          </span>
+        )}
       </div>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ background: "#F9F9F9" }}>
-            <th style={{ padding: "8px 16px", fontSize: 11, color: "#888", fontWeight: 700, textAlign: "left", width: 40 }}>#</th>
-            <th style={{ padding: "8px 16px", fontSize: 11, color: "#888", fontWeight: 700, textAlign: "left" }}>Dupla</th>
-            <th style={{ padding: "8px 16px", fontSize: 11, color: "#888", fontWeight: 700, textAlign: "center" }}>J</th>
-            <th style={{ padding: "8px 16px", fontSize: 11, color: "#888", fontWeight: 700, textAlign: "center" }}>V</th>
-            <th style={{ padding: "8px 16px", fontSize: 11, color: "#888", fontWeight: 700, textAlign: "center" }}>Saldo</th>
+            {["#", "Dupla", "J", "V", "Saldo"].map((h, idx) => (
+              <th key={h} style={{ padding: "7px 16px", fontSize: 11, color: "#888", fontWeight: 700, textAlign: idx > 1 ? "center" : "left" }}>{h}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {ranked.map((r, i) => (
-            <tr key={r.id} style={{ borderBottom: "1px solid #f5f5f5", background: i === 0 ? "#FFFCE8" : undefined }}>
-              <td style={{ padding: "10px 16px", fontFamily: "var(--font-oswald), sans-serif", fontSize: 18, fontWeight: 700, color: i === 0 ? "#F5C000" : "#ccc" }}>{i + 1}</td>
-              <td style={{ padding: "10px 16px", fontSize: 14, fontWeight: i < 3 ? 700 : 400, color: "#111" }}>{r.label}</td>
-              <td style={{ padding: "10px 16px", fontSize: 13, textAlign: "center", color: "#555" }}>{r.played}</td>
-              <td style={{ padding: "10px 16px", fontSize: 13, textAlign: "center", color: "#555" }}>{r.wins}</td>
-              <td style={{ padding: "10px 16px", fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 700, textAlign: "center", color: r.balance >= 0 ? "#111" : "#d32f2f" }}>
-                {r.balance > 0 ? "+" : ""}{r.balance}
-              </td>
-            </tr>
-          ))}
+          {ranked.map((r, i) => {
+            const advances = !noFinals && pairsAdvancing > 0 && i < pairsAdvancing;
+            const isChampion = noFinals && i === 0;
+            return (
+              <tr key={r.id} style={{ borderBottom: "1px solid #f5f5f5", background: advances || isChampion ? "#FFFCE8" : undefined }}>
+                <td style={{ padding: "9px 16px", fontFamily: "var(--font-oswald), sans-serif", fontSize: 18, fontWeight: 700, color: i === 0 ? "#F5C000" : "#ccc", width: 40 }}>{i + 1}</td>
+                <td style={{ padding: "9px 16px", fontSize: 13, fontWeight: i < 3 ? 700 : 400, color: "#111" }}>
+                  {r.label}
+                  {advances && <span style={{ fontSize: 10, marginLeft: 6, background: "#F5C000", color: "#111", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>FINAL</span>}
+                  {isChampion && <span style={{ fontSize: 10, marginLeft: 6, background: "#F5C000", color: "#111", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>🏆 CAMPEÃO</span>}
+                </td>
+                <td style={{ padding: "9px 16px", fontSize: 12, textAlign: "center", color: "#555" }}>{r.played}</td>
+                <td style={{ padding: "9px 16px", fontSize: 12, textAlign: "center", color: "#555" }}>{r.wins}</td>
+                <td style={{ padding: "9px 16px", fontFamily: "var(--font-oswald), sans-serif", fontSize: 15, fontWeight: 700, textAlign: "center", color: r.balance >= 0 ? "#111" : "#d32f2f" }}>
+                  {r.balance > 0 ? "+" : ""}{r.balance}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function GroupSection({
+  groupNum,
+  matches,
+  regs,
+  pairsAdvancing,
+  durationMinutes,
+  noFinals,
+}: {
+  groupNum: number;
+  matches: Match[];
+  regs: Registration[];
+  pairsAdvancing: number;
+  durationMinutes: number | null;
+  noFinals: boolean;
+}) {
+  const groupMatches = matches.filter((m) => m.groupNumber === groupNum);
+  const groupRegs = regs.filter((r) => r.groupNumber === groupNum);
+  const rounds = [...new Set(groupMatches.map((m) => m.round))].sort((a, b) => a - b);
+  const completed = groupMatches.filter((m) => m.completedAt).length;
+  const groupLabel = `Grupo ${String.fromCharCode(64 + groupNum)}`; // A, B, C...
+
+  return (
+    <div style={{ marginTop: 24, background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+      <div style={{ background: "#222", padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 15, fontWeight: 600, color: "#F5C000", letterSpacing: "0.06em" }}>
+          {groupLabel.toUpperCase()}
+        </span>
+        <span style={{ fontSize: 12, color: "#888" }}>
+          {completed}/{groupMatches.length} partidas · {groupRegs.length} duplas
+          {durationMinutes ? ` · ${durationMinutes} min/partida` : ""}
+        </span>
+      </div>
+
+      {groupMatches.length === 0 ? (
+        <div style={{ padding: "20px", textAlign: "center", color: "#aaa", fontSize: 13 }}>
+          Sem partidas. Gera o schedule acima.
+        </div>
+      ) : (
+        <>
+          {rounds.map((round) => (
+            <div key={round}>
+              <div style={{ padding: "7px 16px", background: "#F9F9F9", borderBottom: "1px solid #eee", borderTop: round > 1 ? "2px solid #eee" : undefined, display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontWeight: 700, fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em" }}>Ronda {round}</span>
+                {durationMinutes && <span style={{ fontSize: 11, color: "#aaa" }}>{durationMinutes} min</span>}
+              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <tbody>
+                  {groupMatches.filter((m) => m.round === round).map((match) => (
+                    <GameRow key={match.id} match={match} regs={regs} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+          <GroupStandings
+            matches={groupMatches}
+            regs={groupRegs}
+            pairsAdvancing={pairsAdvancing}
+            groupLabel={groupLabel}
+            noFinals={noFinals}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -175,6 +267,8 @@ export function NonStopSection({
   hasConfirmedRegs,
   durationMinutes,
   totalDurationMinutes,
+  numGroups,
+  pairsAdvancing,
 }: {
   tournamentId: string;
   matches: Match[];
@@ -182,14 +276,29 @@ export function NonStopSection({
   hasConfirmedRegs: boolean;
   durationMinutes: number | null;
   totalDurationMinutes: number | null;
+  numGroups: number | null;
+  pairsAdvancing: number | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
 
-  const courts = Math.floor(regs.filter((r) => r.player2 !== null).length / 2) ||
-    Math.floor(matches.reduce((max, m) => Math.max(max, m.court ?? 0), 0));
-  const rounds = [...new Set(matches.map((m) => m.round))].sort((a, b) => a - b);
-  const completedCount = matches.filter((m) => m.completedAt).length;
+  const active = activeRegs(regs);
+  const groups = numGroups && numGroups > 1 ? numGroups : 1;
+  const noFinals = pairsAdvancing === 0;
+  const advancing = pairsAdvancing ?? 0;
+
+  const totalMatches = matches.filter((m) => m.groupNumber !== 0).length;
+  const completedCount = matches.filter((m) => m.completedAt && m.groupNumber !== 0).length;
+  const pairsWithGroup = active.filter((r) => r.groupNumber !== null).length;
+  const pairsNeedGroup = groups > 1 && pairsWithGroup < active.length;
+
+  function handleAssignGroups() {
+    setError("");
+    startTransition(async () => {
+      try { await assignGroups(tournamentId); }
+      catch (e) { setError((e as Error).message); }
+    });
+  }
 
   function handleGenerate() {
     setError("");
@@ -210,27 +319,35 @@ export function NonStopSection({
 
   return (
     <>
+      {/* Header card */}
       <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", marginTop: 24 }}>
         <div style={{ background: "#111", padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 600, color: "#fff", letterSpacing: "0.04em" }}>
-              SCHEDULE NON-STOP
+              NON-STOP {groups > 1 ? `· ${groups} GRUPOS` : ""}
             </span>
-            {matches.length > 0 && (
+            {totalMatches > 0 && (
               <span style={{ fontSize: 12, color: "#888", marginLeft: 10 }}>
-                {completedCount}/{matches.length} partidas · {rounds.length} rondas · {durationMinutes ?? "?"} min/partida
+                {completedCount}/{totalMatches} partidas
+                {durationMinutes ? ` · ${durationMinutes} min/partida` : ""}
                 {totalDurationMinutes ? ` · ${Math.floor(totalDurationMinutes / 60)}h${totalDurationMinutes % 60 > 0 ? `${totalDurationMinutes % 60}min` : ""}` : ""}
-                {courts > 0 ? ` · ${courts} quadras` : ""}
               </span>
             )}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            {matches.length === 0 && hasConfirmedRegs && (
+            {/* Step 1: assign groups (if multi-group and not done) */}
+            {groups > 1 && pairsNeedGroup && hasConfirmedRegs && (
+              <button onClick={handleAssignGroups} disabled={pending} style={{ background: "#F5C000", border: "none", borderRadius: 8, padding: "7px 16px", fontWeight: 700, fontSize: 13, color: "#111", cursor: "pointer" }}>
+                {pending ? "A distribuir…" : "🎲 Distribuir grupos"}
+              </button>
+            )}
+            {/* Step 2: generate schedule */}
+            {totalMatches === 0 && hasConfirmedRegs && (!pairsNeedGroup) && (
               <button onClick={handleGenerate} disabled={pending} style={{ background: "#F5C000", border: "none", borderRadius: 8, padding: "7px 16px", fontWeight: 700, fontSize: 13, color: "#111", cursor: "pointer" }}>
                 {pending ? "A gerar…" : "Gerar Schedule"}
               </button>
             )}
-            {matches.length > 0 && (
+            {totalMatches > 0 && (
               <button onClick={handleReset} disabled={pending} style={{ background: "#F0F0F0", border: "none", borderRadius: 8, padding: "7px 14px", fontWeight: 600, fontSize: 13, color: "#555", cursor: "pointer" }}>
                 🔄 Refazer
               </button>
@@ -240,22 +357,20 @@ export function NonStopSection({
 
         {error && <div style={{ padding: "10px 20px", background: "#FFF3F3", color: "#d32f2f", fontSize: 13 }}>{error}</div>}
 
-        {matches.length === 0 ? (
+        {/* Single pool (no groups) */}
+        {groups === 1 && totalMatches === 0 && (
           <div style={{ padding: "32px 20px", textAlign: "center", color: "#aaa", fontSize: 14 }}>
-            {hasConfirmedRegs
-              ? "Clica em \"Gerar Schedule\" para criar todas as rondas."
-              : "Ainda não há inscrições confirmadas."}
+            {hasConfirmedRegs ? "Clica em \"Gerar Schedule\" para criar as rondas." : "Ainda não há duplas confirmadas."}
           </div>
-        ) : (
-          rounds.map((round) => (
+        )}
+
+        {groups === 1 && totalMatches > 0 && (() => {
+          const rounds = [...new Set(matches.map((m) => m.round))].sort((a, b) => a - b);
+          return rounds.map((round) => (
             <div key={round}>
-              <div style={{ padding: "8px 16px", background: "#F9F9F9", borderBottom: "1px solid #eee", borderTop: round > 1 ? "2px solid #eee" : undefined, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontWeight: 700, fontSize: 12, color: "#555", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                  Ronda {round}
-                </span>
-                {durationMinutes && (
-                  <span style={{ fontSize: 11, color: "#aaa" }}>{durationMinutes} min</span>
-                )}
+              <div style={{ padding: "8px 16px", background: "#F9F9F9", borderBottom: "1px solid #eee", borderTop: round > 1 ? "2px solid #eee" : undefined, display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontWeight: 700, fontSize: 12, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em" }}>Ronda {round}</span>
+                {durationMinutes && <span style={{ fontSize: 11, color: "#aaa" }}>{durationMinutes} min</span>}
               </div>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <tbody>
@@ -265,11 +380,41 @@ export function NonStopSection({
                 </tbody>
               </table>
             </div>
-          ))
+          ));
+        })()}
+
+        {/* Group assignment status */}
+        {groups > 1 && pairsNeedGroup && totalMatches === 0 && (
+          <div style={{ padding: "20px 24px", color: "#888", fontSize: 13, textAlign: "center" }}>
+            {pairsWithGroup > 0
+              ? `${pairsWithGroup} de ${active.length} duplas com grupo atribuído. Distribui os grupos para continuar.`
+              : "Clica em \"Distribuir grupos\" para atribuir as duplas aleatoriamente."}
+          </div>
         )}
       </div>
 
-      {matches.length > 0 && <Standings matches={matches} regs={regs} />}
+      {/* Single pool standings */}
+      {groups === 1 && totalMatches > 0 && (
+        <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", marginTop: 24 }}>
+          <div style={{ background: "#111", padding: "14px 20px" }}>
+            <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 600, color: "#fff", letterSpacing: "0.04em" }}>CLASSIFICAÇÃO</span>
+          </div>
+          <GroupStandings matches={matches} regs={active} pairsAdvancing={0} groupLabel="" noFinals={true} />
+        </div>
+      )}
+
+      {/* Multi-group: one section per group */}
+      {groups > 1 && Array.from({ length: groups }, (_, i) => i + 1).map((g) => (
+        <GroupSection
+          key={g}
+          groupNum={g}
+          matches={matches}
+          regs={active}
+          pairsAdvancing={advancing}
+          durationMinutes={durationMinutes}
+          noFinals={noFinals}
+        />
+      ))}
     </>
   );
 }

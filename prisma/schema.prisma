@@ -94,6 +94,8 @@ model Tournament {
   description      String?
   durationMinutes      Int?                   // Non-Stop only: minutes per match
   totalDurationMinutes Int?                   // Non-Stop only: total event duration in minutes
+  numGroups            Int?                   // Non-Stop only: number of groups (null/1 = single pool)
+  pairsAdvancing       Int?                   // Non-Stop only: pairs per group advancing to finals
   createdAt        DateTime                   @default(now())
   updatedAt        DateTime                   @updatedAt
 
@@ -126,6 +128,7 @@ model Registration {
   player2      Member?             @relation("Player2", fields: [player2Id], references: [id])
   player2Id    String?
   status       RegistrationStatus  @default(PENDING)
+  groupNumber  Int?
   createdAt    DateTime           @default(now())
 
   matchesAsP1 Match[] @relation("Pair1")
@@ -145,6 +148,7 @@ model Match {
   pair2        Registration? @relation("Pair2", fields: [pair2Id], references: [id])
   pair2Id      String?
   court        Int?
+  groupNumber  Int?
   score1       Int?
   score2       Int?
   winnerId     String?
