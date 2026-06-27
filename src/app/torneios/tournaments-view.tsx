@@ -50,9 +50,8 @@ type FinishedTournament = Tournament & {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function pairName(reg: RegWithPlayers | null, registrationType: string): string {
+function pairName(reg: RegWithPlayers | null): string {
   if (!reg) return "—";
-  if (registrationType === "INDIVIDUAL") return reg.player1.name;
   return reg.player2 ? `${reg.player1.name} / ${reg.player2.name}` : reg.player1.name;
 }
 
@@ -232,7 +231,7 @@ function FinishedTournamentCard({ t }: { t: FinishedTournament }) {
           <div style={{ flex: 1, minWidth: 200, background: "#FFF8E0", border: "2px solid #F5C000", borderRadius: 14, padding: "16px 18px" }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: "#8A6000", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>🏆 Campeões</p>
             <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 18, fontWeight: 700, color: "#111", margin: 0 }}>
-              {pairName(champion, t.registrationType)}
+              {pairName(champion)}
             </p>
             {finalMatch?.score1 != null && finalMatch?.score2 != null && (
               <p style={{ fontSize: 12, color: "#888", margin: "4px 0 0" }}>
@@ -244,7 +243,7 @@ function FinishedTournamentCard({ t }: { t: FinishedTournament }) {
             <div style={{ flex: 1, minWidth: 180, background: "#F9F9F9", borderRadius: 14, padding: "16px 18px", border: "1px solid #E8E8E8" }}>
               <p style={{ fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>🥈 Finalistas</p>
               <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 700, color: "#555", margin: 0 }}>
-                {pairName(runnerUp, t.registrationType)}
+                {pairName(runnerUp)}
               </p>
             </div>
           )}
@@ -276,7 +275,7 @@ function FinishedTournamentCard({ t }: { t: FinishedTournament }) {
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontSize: 16 }}>{MEDALS[i]}</span>
                         <span style={{ fontWeight: i === 0 ? 700 : 500, fontSize: 13, color: i === 0 ? "#111" : "#555" }}>
-                          {pairName(s.reg, t.registrationType)}
+                          {pairName(s.reg)}
                         </span>
                       </div>
                       <div style={{ fontSize: 12, color: "#888", textAlign: "right", flexShrink: 0 }}>
@@ -358,8 +357,8 @@ function FinishedTournamentCard({ t }: { t: FinishedTournament }) {
 function MatchRow({ m, maxRound, registrationType, isPool }: {
   m: MatchWithPlayers; maxRound: number; registrationType: string; isPool?: boolean;
 }) {
-  const p1Name = pairName(m.pair1, registrationType);
-  const p2Name = pairName(m.pair2, registrationType);
+  const p1Name = pairName(m.pair1);
+  const p2Name = pairName(m.pair2);
   const p1Won = m.winnerId === m.pair1Id;
   const p2Won = m.winnerId === m.pair2Id;
   const label = m.label ?? (isPool ? `Ronda ${m.round}` : roundLabel(m.round, maxRound));
