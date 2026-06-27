@@ -180,8 +180,8 @@ export default async function ImprimirTorneioPage({ params }: { params: Promise<
 
   const anyCompleted = tournament.matches.some((m) => m.completedAt);
 
-  const thStyle: React.CSSProperties = { padding: "7px 12px", fontSize: 10, fontWeight: 700, color: "#888", textTransform: "uppercase" as const, letterSpacing: "0.07em", textAlign: "left" as const, borderBottom: "2px solid #e0e0e0" };
-  const tdStyle: React.CSSProperties = { padding: "8px 12px", fontSize: 13, borderBottom: "1px solid #f5f5f5" };
+  const thStyle: React.CSSProperties = { padding: "7px 12px", fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase" as const, letterSpacing: "0.07em", textAlign: "left" as const, borderBottom: "2px solid #999", background: "#f0f0f0" };
+  const tdStyle: React.CSSProperties = { padding: "8px 12px", fontSize: 13, borderBottom: "1px solid #ccc", borderTop: "1px solid #ccc" };
 
   return (
     <>
@@ -331,7 +331,7 @@ export default async function ImprimirTorneioPage({ params }: { params: Promise<
                     </div>
                   )}
 
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", border: "1.5px solid #bbb" }}>
                     <thead>
                       <tr style={{ background: "#F9F9F9" }}>
                         <th style={{ ...thStyle, width: 32, textAlign: "center" }}>#</th>
