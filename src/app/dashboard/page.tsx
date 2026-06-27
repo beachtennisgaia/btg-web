@@ -76,17 +76,17 @@ export default async function DashboardPage() {
       <Nav />
 
       {/* HEADER */}
-      <div style={{ background: "#111", padding: "40px 32px 32px" }}>
+      <div className="btg-page-header" style={{ background: "#111" }}>
         <h1 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 38, fontWeight: 700, color: "#fff", margin: "0 0 6px", letterSpacing: "0.03em" }}>
           ÁREA DE SÓCIO
         </h1>
         <p style={{ color: "#888", fontSize: 15, margin: 0 }}>O teu perfil, inscrições e estatísticas BTG.</p>
       </div>
 
-      <div style={{ padding: "32px", maxWidth: 1000, display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
+      <div className="btg-dash-layout">
 
         {/* LEFT — Member card */}
-        <div style={{ width: 280, flexShrink: 0 }}>
+        <div className="btg-member-card">
           <div style={{ background: "#fff", borderRadius: 20, overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.09)" }}>
             <div style={{ background: "linear-gradient(135deg, #111 60%, #222)", padding: "24px 20px", position: "relative" }}>
               {/* Watermark logo */}

@@ -43,7 +43,7 @@ export default async function RankingPage() {
       <Nav />
 
       {/* PAGE HEADER */}
-      <div style={{ background: "#111", padding: "40px 32px 32px" }}>
+      <div className="btg-page-header" style={{ background: "#111" }}>
         <h1 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 38, fontWeight: 700, color: "#fff", margin: "0 0 6px", letterSpacing: "0.03em" }}>
           RANKING BTG
         </h1>
@@ -52,7 +52,7 @@ export default async function RankingPage() {
         </p>
       </div>
 
-      <div style={{ padding: "32px", maxWidth: 860 }}>
+      <div className="btg-page-content">
         <div style={{ background: "#fff", borderRadius: 20, overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.08)" }}>
 
           {/* TABLE HEADER */}

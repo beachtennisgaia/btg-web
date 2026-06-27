@@ -132,7 +132,7 @@ export function TournamentsView({ tournaments }: { tournaments: TournamentWithCo
   return (
     <>
       {/* TABS */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #eee", padding: "0 32px", display: "flex" }}>
+      <div className="btg-tournaments-tabs" style={{ background: "#fff", borderBottom: "1px solid #eee", display: "flex" }}>
         {TABS.map(({ id, label }) => {
           const count = tournaments.filter((t) => STATUS_TAB[t.status] === id).length;
           return (
@@ -147,7 +147,7 @@ export function TournamentsView({ tournaments }: { tournaments: TournamentWithCo
         })}
       </div>
 
-      <div style={{ padding: "24px 32px", maxWidth: 1100 }}>
+      <div className="btg-tournaments-content">
         {filtered.length === 0 ? (
           <EmptyTab tab={tab} />
         ) : (

@@ -54,14 +54,14 @@ export default async function ComunidadePage() {
       <Nav />
 
       {/* HEADER */}
-      <div style={{ background: "#111", padding: "40px 32px 32px" }}>
+      <div className="btg-page-header" style={{ background: "#111" }}>
         <h1 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 38, fontWeight: 700, color: "#fff", margin: "0 0 6px", letterSpacing: "0.03em" }}>
           COMUNIDADE BTG
         </h1>
         <p style={{ color: "#888", fontSize: 15, margin: 0 }}>Fotos, notícias e momentos da nossa associação.</p>
       </div>
 
-      <div style={{ padding: "32px", maxWidth: 1100, display: "flex", gap: 24, alignItems: "flex-start" }}>
+      <div className="btg-community-layout">
 
         {/* FEED */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
@@ -98,7 +98,7 @@ export default async function ComunidadePage() {
         </div>
 
         {/* SIDEBAR */}
-        <div style={{ width: 280, flexShrink: 0, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="btg-sidebar" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
           {/* UPCOMING EVENTS */}
           <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.07)" }}>

@@ -14,7 +14,7 @@ export default async function TorneiosPage() {
     <div style={{ minHeight: "100vh", background: "#F0F0F0", fontFamily: "var(--font-inter), sans-serif" }}>
       <Nav />
 
-      <div style={{ background: "#111", padding: "40px 32px 32px" }}>
+      <div className="btg-page-header" style={{ background: "#111" }}>
         <h1 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 38, fontWeight: 700, color: "#fff", margin: "0 0 6px", letterSpacing: "0.03em" }}>
           TORNEIOS BTG
         </h1>
