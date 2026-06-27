@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { db } from "@/lib/db";
 import { Onboarding } from "./onboarding";
+import { MyRegistrations } from "./my-registrations";
 
 const YEAR = 2026;
 
@@ -28,9 +29,12 @@ export default async function DashboardPage() {
     include: {
       rankingPoints: { where: { year: YEAR } },
       registrationsAsP1: {
-        include: { tournament: true },
+        include: { tournament: true, player1: true, player2: true },
         orderBy: { createdAt: "desc" },
-        take: 5,
+      },
+      registrationsAsP2: {
+        include: { tournament: true, player1: true, player2: true },
+        orderBy: { createdAt: "desc" },
       },
     },
   });
@@ -59,9 +63,13 @@ export default async function DashboardPage() {
   const rankPos = ranked.findIndex((m) => m.id === member.id);
   const rankLabel = rankPos >= 0 ? `#${rankPos + 1}` : "—";
 
-  const upcomingRegs = member.registrationsAsP1.filter(
-    (r) => r.tournament.status === "OPEN" || r.tournament.status === "ONGOING"
-  );
+  const activeStatuses = new Set(["OPEN", "ONGOING"]);
+  const allRegs = [
+    ...member.registrationsAsP1.map((r) => ({ ...r, isPlayer1: true })),
+    ...member.registrationsAsP2.map((r) => ({ ...r, isPlayer1: false })),
+  ]
+    .filter((r) => activeStatuses.has(r.tournament.status))
+    .sort((a, b) => new Date(a.tournament.date).getTime() - new Date(b.tournament.date).getTime());
 
   return (
     <div style={{ minHeight: "100vh", background: "#F0F0F0", fontFamily: "var(--font-inter), sans-serif" }}>
@@ -140,38 +148,7 @@ export default async function DashboardPage() {
               </span>
               <a href="/torneios" style={{ fontSize: 13, color: "#F5C000", fontWeight: 600, textDecoration: "none" }}>Ver torneios →</a>
             </div>
-            {upcomingRegs.length === 0 ? (
-              <div style={{ padding: "40px 24px", textAlign: "center" }}>
-                <p style={{ fontSize: 36, margin: "0 0 12px" }}>🎾</p>
-                <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 18, fontWeight: 700, color: "#111", margin: "0 0 8px" }}>
-                  SEM INSCRIÇÕES ATIVAS
-                </p>
-                <p style={{ fontSize: 14, color: "#888", margin: "0 0 20px" }}>Ainda não tens inscrições em torneios ativos.</p>
-                <a href="/torneios" style={{ background: "#F5C000", color: "#111", fontWeight: 700, padding: "12px 24px", borderRadius: 9, fontSize: 14, textDecoration: "none", display: "inline-block" }}>
-                  Ver próximos torneios
-                </a>
-              </div>
-            ) : (
-              <div style={{ padding: "8px 0" }}>
-                {upcomingRegs.map((reg) => (
-                  <div key={reg.id} style={{ padding: "14px 24px", borderBottom: "1px solid #f5f5f5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <p style={{ fontWeight: 600, fontSize: 14, color: "#111", margin: 0 }}>{reg.tournament.name}</p>
-                      <p style={{ fontSize: 12, color: "#888", margin: "2px 0 0" }}>
-                        {new Date(reg.tournament.date).toLocaleDateString("pt-PT", { day: "numeric", month: "short", year: "numeric" })} · {reg.tournament.location}
-                      </p>
-                    </div>
-                    <span style={{
-                      background: reg.status === "CONFIRMED" ? "#FFFDE7" : "#F0F0F0",
-                      color: reg.status === "CONFIRMED" ? "#7A5900" : "#888",
-                      fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 99,
-                    }}>
-                      {reg.status === "CONFIRMED" ? "Confirmada ✓" : "Pendente"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <MyRegistrations registrations={allRegs} />
           </div>
 
           {/* Ranking history */}

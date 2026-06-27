@@ -49,6 +49,22 @@ export async function deleteTournament(id: string) {
 
 // ── REGISTRATIONS ─────────────────────────────────────────────
 
+export async function cancelOwnRegistration(id: string) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Não autenticado");
+  const member = await db.member.findUnique({ where: { clerkId: userId } });
+  if (!member) throw new Error("Perfil não encontrado");
+
+  const reg = await db.registration.findUnique({ where: { id } });
+  if (!reg) throw new Error("Inscrição não encontrada");
+  if (reg.player1Id !== member.id && reg.player2Id !== member.id) throw new Error("Sem permissão");
+  if (reg.status === "CANCELLED") throw new Error("Inscrição já cancelada");
+
+  await db.registration.update({ where: { id }, data: { status: "CANCELLED" } });
+  revalidatePath("/dashboard");
+  revalidatePath(`/admin/torneios/${reg.tournamentId}`);
+}
+
 export async function updateRegistrationStatus(id: string, status: "CONFIRMED" | "CANCELLED" | "PENDING") {
   await requireAdmin();
   const reg = await db.registration.update({
