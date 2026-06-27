@@ -33,6 +33,10 @@ export default async function EditarTorneioPage({ params }: { params: Promise<{ 
         maxPairs: tournament.maxPairs,
         description: tournament.description ?? "",
         status: tournament.status,
+        durationMinutes: tournament.durationMinutes,
+        totalDurationMinutes: tournament.totalDurationMinutes,
+        numGroups: tournament.numGroups,
+        pairsAdvancing: tournament.pairsAdvancing,
       }} />
     </div>
   );
