@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MemberRole {
+  MEMBER
+  ADMIN
+}
+
+enum PlayerLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum TournamentStatus {
+  DRAFT
+  OPEN
+  ONGOING
+  FINISHED
+}
+
+enum TournamentFormat {
+  ELIMINATION
+  NON_STOP
+}
+
+enum TournamentCategory {
+  MIXED
+  MALE
+  FEMALE
+  OPEN
+}
+
+enum RegistrationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum PostType {
+  ANNOUNCEMENT
+  COMMUNITY
+}
+
+model Member {
+  id           String      @id @default(cuid())
+  clerkId      String      @unique
+  name         String
+  email        String      @unique
+  phone        String?
+  level        PlayerLevel @default(BEGINNER)
+  memberNumber Int?        @unique
+  role         MemberRole  @default(MEMBER)
+  quotaYear    Int?
+  avatarUrl    String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  registrationsAsP1 Registration[] @relation("Player1")
+  registrationsAsP2 Registration[] @relation("Player2")
+  posts             Post[]
+  rankingPoints     RankingPoint[]
+}
+
+model Tournament {
+  id          String             @id @default(cuid())
+  name        String
+  date        DateTime
+  location    String
+  format      TournamentFormat   @default(ELIMINATION)
+  category    TournamentCategory @default(MIXED)
+  maxPairs    Int                @default(16)
+  status      TournamentStatus   @default(DRAFT)
+  description String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  registrations Registration[]
+  matches       Match[]
+  rankingPoints RankingPoint[]
+}
+
+model Registration {
+  id           String             @id @default(cuid())
+  tournament   Tournament         @relation(fields: [tournamentId], references: [id])
+  tournamentId String
+  player1      Member             @relation("Player1", fields: [player1Id], references: [id])
+  player1Id    String
+  player2      Member             @relation("Player2", fields: [player2Id], references: [id])
+  player2Id    String
+  status       RegistrationStatus @default(PENDING)
+  createdAt    DateTime           @default(now())
+
+  matchesAsP1 Match[] @relation("Pair1")
+  matchesAsP2 Match[] @relation("Pair2")
+
+  @@unique([tournamentId, player1Id, player2Id])
+}
+
+model Match {
+  id           String        @id @default(cuid())
+  tournament   Tournament    @relation(fields: [tournamentId], references: [id])
+  tournamentId String
+  round        Int
+  position     Int
+  pair1        Registration? @relation("Pair1", fields: [pair1Id], references: [id])
+  pair1Id      String?
+  pair2        Registration? @relation("Pair2", fields: [pair2Id], references: [id])
+  pair2Id      String?
+  score1       Int?
+  score2       Int?
+  winnerId     String?
+  completedAt  DateTime?
+  createdAt    DateTime      @default(now())
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  author    Member   @relation(fields: [authorId], references: [id])
+  authorId  String
+  type      PostType @default(COMMUNITY)
+  content   String
+  photos    Photo[]
+  likes     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Photo {
+  id        String   @id @default(cuid())
+  post      Post     @relation(fields: [postId], references: [id])
+  postId    String
+  url       String
+  createdAt DateTime @default(now())
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  date        DateTime
+  location    String?
+  description String?
+  createdAt   DateTime @default(now())
+}
+
+model RankingPoint {
+  id           String     @id @default(cuid())
+  member       Member     @relation(fields: [memberId], references: [id])
+  memberId     String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+  tournamentId String
+  points       Int
+  year         Int
+  createdAt    DateTime   @default(now())
+
+  @@unique([memberId, tournamentId])
+}
