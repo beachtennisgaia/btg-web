@@ -35,12 +35,12 @@ export default async function DashboardPage() {
     },
   });
 
-  // No profile yet — show onboarding
-  if (!member) {
+  // No profile or profile not yet completed — show onboarding
+  if (!member || !member.profileComplete) {
     return (
       <>
         <Nav />
-        <Onboarding email={email} />
+        <Onboarding email={email} name={member?.name ?? ""} />
       </>
     );
   }

@@ -23,11 +23,13 @@ export async function POST(req: Request) {
       email,
       phone: phone?.trim() || null,
       level: level ?? "BEGINNER",
+      profileComplete: true,
     },
     update: {
       name: name.trim(),
       phone: phone?.trim() || null,
       level: level ?? "BEGINNER",
+      profileComplete: true,
     },
   });
 

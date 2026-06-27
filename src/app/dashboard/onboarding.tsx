@@ -9,9 +9,9 @@ const LEVELS = [
   { value: "ADVANCED", label: "Avançado" },
 ];
 
-export function Onboarding({ email }: { email: string }) {
+export function Onboarding({ email, name: initialName }: { email: string; name: string }) {
   const router = useRouter();
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState("");
   const [level, setLevel] = useState("BEGINNER");
   const [loading, setLoading] = useState(false);
