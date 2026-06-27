@@ -39,10 +39,13 @@ export default async function TorneioDetailPage({ params }: { params: Promise<{ 
               {new Date(tournament.date).toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {tournament.location}
             </p>
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: "#555", background: "#E0E0E0", padding: "4px 12px", borderRadius: 99 }}>
               {STATUS_LABEL[tournament.status]}
             </span>
+            <Link href={`/admin/torneios/${id}/editar`} style={{ background: "#F0F0F0", color: "#333", fontWeight: 600, padding: "9px 18px", borderRadius: 8, fontSize: 13, textDecoration: "none" }}>
+              Editar
+            </Link>
             {next && (
               <form action={updateTournamentStatus.bind(null, id, next)}>
                 <button type="submit" style={{ background: "#F5C000", color: "#111", fontWeight: 700, padding: "9px 18px", borderRadius: 8, border: "none", fontSize: 13, cursor: "pointer" }}>
