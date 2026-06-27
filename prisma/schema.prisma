@@ -52,12 +52,18 @@ enum PostType {
   COMMUNITY
 }
 
+enum PlayerGender {
+  MALE
+  FEMALE
+}
+
 model Member {
   id           String      @id @default(cuid())
   clerkId      String      @unique
   name         String
   email        String      @unique
   phone        String?
+  gender       PlayerGender?
   level        PlayerLevel @default(BEGINNER)
   memberNumber Int?        @unique
   role         MemberRole  @default(MEMBER)

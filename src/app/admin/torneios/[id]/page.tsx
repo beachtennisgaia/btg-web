@@ -4,6 +4,7 @@ import { updateTournamentStatus } from "@/lib/actions";
 import Link from "next/link";
 import { RegistrationsTable } from "./registrations-table";
 import { MatchesSection } from "./matches-section";
+import { DrawSection } from "./draw-section";
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: "Rascunho", OPEN: "Inscrições Abertas", ONGOING: "A Decorrer", FINISHED: "Concluído" };
 const NEXT_STATUS: Record<string, string> = { DRAFT: "OPEN", OPEN: "ONGOING", ONGOING: "FINISHED" };
@@ -84,6 +85,20 @@ export default async function TorneioDetailPage({ params }: { params: Promise<{ 
           tournamentStatus={tournament.status}
         />
       </div>
+
+      {/* Draw — only for individual registration tournaments */}
+      {tournament.registrationType === "INDIVIDUAL" && (() => {
+        const soloCount = tournament.registrations.filter(
+          (r) => r.status !== "CANCELLED" && r.player2Id === null
+        ).length;
+        return soloCount >= 2 ? (
+          <DrawSection
+            tournamentId={id}
+            soloCount={soloCount}
+            isMixed={tournament.category === "MIXED"}
+          />
+        ) : null;
+      })()}
 
       {/* Matches / Bracket */}
       {(tournament.status === "ONGOING" || tournament.status === "FINISHED") && (

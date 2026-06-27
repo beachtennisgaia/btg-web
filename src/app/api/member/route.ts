@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const clerkUser = await currentUser();
-  const { name, phone, level } = await req.json();
+  const { name, phone, level, gender } = await req.json();
 
   if (!name?.trim()) {
     return NextResponse.json({ error: "Nome obrigatório" }, { status: 400 });
@@ -23,12 +23,14 @@ export async function POST(req: Request) {
       email,
       phone: phone?.trim() || null,
       level: level ?? "BEGINNER",
+      gender: gender ?? null,
       profileComplete: true,
     },
     update: {
       name: name.trim(),
       phone: phone?.trim() || null,
       level: level ?? "BEGINNER",
+      gender: gender ?? null,
       profileComplete: true,
     },
   });

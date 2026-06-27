@@ -111,6 +111,94 @@ export async function deleteRankingPoint(memberId: string, tournamentId: string)
   revalidatePath("/ranking");
 }
 
+// ── DRAW (sorteio de duplas) ──────────────────────────────────
+
+const LEVEL_SCORE = { BEGINNER: 1, INTERMEDIATE: 2, ADVANCED: 3 } as const;
+
+export async function drawPairs(tournamentId: string) {
+  await requireAdmin();
+
+  const tournament = await db.tournament.findUnique({ where: { id: tournamentId } });
+  if (!tournament) throw new Error("Torneio não encontrado");
+
+  // Solo registrations only (no partner yet)
+  const solos = await db.registration.findMany({
+    where: { tournamentId, player2Id: null, status: { not: "CANCELLED" } },
+    include: { player1: true },
+  });
+
+  if (solos.length < 2) throw new Error("Mínimo de 2 inscrições individuais sem par");
+
+  type Solo = typeof solos[number];
+
+  // Shuffle within groups to introduce randomness
+  function shuffle<T>(arr: T[]): T[] {
+    return arr.sort(() => Math.random() - 0.5);
+  }
+
+  let pairs: [Solo, Solo][] = [];
+
+  if (tournament.category === "MIXED") {
+    // For mixed: pair MALE with FEMALE, balance by level (best with worst)
+    const males = shuffle(solos.filter((s) => s.player1.gender === "MALE"));
+    const females = shuffle(solos.filter((s) => s.player1.gender === "FEMALE"));
+    const neutral = shuffle(solos.filter((s) => !s.player1.gender));
+
+    // Sort males DESC, females ASC → pair index i with reversed i
+    males.sort((a, b) => LEVEL_SCORE[b.player1.level] - LEVEL_SCORE[a.player1.level]);
+    females.sort((a, b) => LEVEL_SCORE[a.player1.level] - LEVEL_SCORE[b.player1.level]);
+
+    const count = Math.min(males.length, females.length);
+    for (let i = 0; i < count; i++) {
+      pairs.push([males[i], females[i]]);
+    }
+
+    // Leftover from gender mismatch + neutrals → pair by level balance
+    const leftover = [
+      ...males.slice(count),
+      ...females.slice(count),
+      ...neutral,
+    ].sort((a, b) => LEVEL_SCORE[b.player1.level] - LEVEL_SCORE[a.player1.level]);
+
+    for (let i = 0; i < Math.floor(leftover.length / 2); i++) {
+      pairs.push([leftover[i], leftover[leftover.length - 1 - i]]);
+    }
+  } else {
+    // Non-mixed: pair best with worst by level
+    const sorted = shuffle(solos).sort(
+      (a, b) => LEVEL_SCORE[b.player1.level] - LEVEL_SCORE[a.player1.level]
+    );
+    for (let i = 0; i < Math.floor(sorted.length / 2); i++) {
+      pairs.push([sorted[i], sorted[sorted.length - 1 - i]]);
+    }
+  }
+
+  // Apply pairs: set player2Id on player1's registration, cancel player2's solo registration
+  await db.$transaction(
+    pairs.map(([reg1, reg2]) =>
+      db.registration.update({
+        where: { id: reg1.id },
+        data: { player2Id: reg2.player1.id },
+      })
+    )
+  );
+
+  // Cancel the now-merged solo registrations of player2
+  const player2RegIds = pairs.map(([, reg2]) => reg2.id);
+  await db.registration.updateMany({
+    where: { id: { in: player2RegIds } },
+    data: { status: "CANCELLED" },
+  });
+
+  revalidatePath(`/admin/torneios/${tournamentId}`);
+  return pairs.map(([r1, r2]) => ({
+    player1: r1.player1.name,
+    player2: r2.player1.name,
+    level1: r1.player1.level,
+    level2: r2.player1.level,
+  }));
+}
+
 // ── MATCHES ───────────────────────────────────────────────────
 
 export async function generateBracket(tournamentId: string) {

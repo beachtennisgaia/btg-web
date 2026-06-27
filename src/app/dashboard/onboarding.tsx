@@ -9,11 +9,17 @@ const LEVELS = [
   { value: "ADVANCED", label: "Avançado" },
 ];
 
+const GENDERS = [
+  { value: "MALE", label: "Masculino" },
+  { value: "FEMALE", label: "Feminino" },
+];
+
 export function Onboarding({ email, name: initialName }: { email: string; name: string }) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState("");
   const [level, setLevel] = useState("BEGINNER");
+  const [gender, setGender] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -25,7 +31,7 @@ export function Onboarding({ email, name: initialName }: { email: string; name: 
       const res = await fetch("/api/member", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, level }),
+        body: JSON.stringify({ name, phone, level, gender: gender || undefined }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -98,6 +104,34 @@ export function Onboarding({ email, name: initialName }: { email: string; name: 
               type="tel"
               style={inputStyle}
             />
+          </div>
+
+          {/* Gender */}
+          <div>
+            <label style={labelStyle}>Sexo</label>
+            <div style={{ display: "flex", gap: 10 }}>
+              {GENDERS.map((g) => (
+                <button
+                  key={g.value}
+                  type="button"
+                  onClick={() => setGender(g.value)}
+                  style={{
+                    flex: 1,
+                    padding: "10px 0",
+                    borderRadius: 8,
+                    border: gender === g.value ? "2px solid #F5C000" : "2px solid #eee",
+                    background: gender === g.value ? "#FFFDE7" : "#fff",
+                    color: gender === g.value ? "#111" : "#888",
+                    fontSize: 13,
+                    fontWeight: gender === g.value ? 700 : 500,
+                    cursor: "pointer",
+                    fontFamily: "var(--font-inter), sans-serif",
+                  }}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Level */}
