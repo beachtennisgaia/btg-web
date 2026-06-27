@@ -53,7 +53,7 @@ export default async function HomePage() {
       {/* HERO */}
       <section style={{ position: "relative", minHeight: 520, display: "flex", alignItems: "center", overflow: "hidden" }}>
         <HeroSlideshow urls={heroImages.map((i) => i.url)} />
-        <div style={{ position: "relative", zIndex: 1, padding: "80px 32px", maxWidth: 640 }}>
+        <div style={{ position: "relative", zIndex: 3, padding: "80px 32px", maxWidth: 640 }}>
           <span style={{ background: "#F5C000", color: "#111", fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 99, textTransform: "uppercase", letterSpacing: "0.08em" }}>
             Vila Nova de Gaia
           </span>
