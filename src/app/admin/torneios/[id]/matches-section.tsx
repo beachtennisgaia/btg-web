@@ -13,7 +13,7 @@ type Match = {
   id: string;
   round: number;
   position: number;
-  pair1Id: string;
+  pair1Id: string | null;
   pair2Id: string | null;
   score1: number | null;
   score2: number | null;

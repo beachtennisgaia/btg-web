@@ -19,9 +19,30 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!tournament) return NextResponse.json({ error: "Torneio não encontrado" }, { status: 404 });
   if (tournament.status !== "OPEN") return NextResponse.json({ error: "As inscrições para este torneio não estão abertas" }, { status: 400 });
 
-  const currentCount = await db.registration.count({ where: { tournamentId, status: { not: "CANCELLED" } } });
-  if (currentCount >= tournament.maxPairs) {
-    return NextResponse.json({ error: "Este torneio já atingiu o máximo de inscrições" }, { status: 400 });
+  // ── Quota check ─────────────────────────────────────────────
+  if (tournament.registrationType === "INDIVIDUAL" && tournament.category === "MIXED") {
+    if (!member.gender) {
+      return NextResponse.json({ error: "Define o teu sexo no perfil para te inscreveres em torneios mistos." }, { status: 400 });
+    }
+    const genderCount = await db.registration.count({
+      where: { tournamentId, status: { not: "CANCELLED" }, player1: { gender: member.gender } },
+    });
+    if (genderCount >= tournament.maxPairs) {
+      const label = member.gender === "MALE" ? "masculinas" : "femininas";
+      return NextResponse.json({ error: `As vagas ${label} para este torneio estão esgotadas.` }, { status: 400 });
+    }
+  } else if (tournament.registrationType === "INDIVIDUAL") {
+    // MALE / FEMALE / OPEN — total slots = maxPairs × 2
+    const total = await db.registration.count({ where: { tournamentId, status: { not: "CANCELLED" } } });
+    if (total >= tournament.maxPairs * 2) {
+      return NextResponse.json({ error: "Este torneio já atingiu o máximo de inscrições." }, { status: 400 });
+    }
+  } else {
+    // PAIRS — slots = maxPairs
+    const total = await db.registration.count({ where: { tournamentId, status: { not: "CANCELLED" } } });
+    if (total >= tournament.maxPairs) {
+      return NextResponse.json({ error: "Este torneio já atingiu o máximo de inscrições." }, { status: 400 });
+    }
   }
 
   // Check if current user already registered

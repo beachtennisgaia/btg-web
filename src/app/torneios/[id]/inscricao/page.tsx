@@ -15,15 +15,19 @@ export default async function InscricaoPage({ params }: { params: Promise<{ id: 
   if (!userId) redirect(`/sign-in?redirect_url=/torneios/${id}/inscricao`);
 
   const [tournament, member, members] = await Promise.all([
-    db.tournament.findUnique({
-      where: { id },
-      include: { _count: { select: { registrations: { where: { status: { not: "CANCELLED" } } } } } },
-    }),
+    db.tournament.findUnique({ where: { id } }),
     db.member.findUnique({ where: { clerkId: userId } }),
     db.member.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   if (!tournament) notFound();
+
+  // Count registrations by gender and total
+  const [totalCount, maleCount, femaleCount] = await Promise.all([
+    db.registration.count({ where: { tournamentId: id, status: { not: "CANCELLED" } } }),
+    db.registration.count({ where: { tournamentId: id, status: { not: "CANCELLED" }, player1: { gender: "MALE" } } }),
+    db.registration.count({ where: { tournamentId: id, status: { not: "CANCELLED" }, player1: { gender: "FEMALE" } } }),
+  ]);
 
   // Check existing registration
   const existingRegistration = member
@@ -37,8 +41,33 @@ export default async function InscricaoPage({ params }: { params: Promise<{ id: 
       })
     : null;
 
-  const spotsLeft = tournament.maxPairs - tournament._count.registrations;
-  const isFull = spotsLeft <= 0;
+  const isIndividual = tournament.registrationType === "INDIVIDUAL";
+  const isMixed = tournament.category === "MIXED";
+
+  // Compute vacancy state
+  let isFull = false;
+  let isGenderFull = false;
+  let spotsLeft = 0;
+  let maleSpotsLeft = tournament.maxPairs - maleCount;
+  let femaleSpotsLeft = tournament.maxPairs - femaleCount;
+
+  if (isIndividual && isMixed) {
+    const memberGender = member?.gender;
+    isFull = maleCount >= tournament.maxPairs && femaleCount >= tournament.maxPairs;
+    isGenderFull = !!memberGender && (
+      (memberGender === "MALE" && maleCount >= tournament.maxPairs) ||
+      (memberGender === "FEMALE" && femaleCount >= tournament.maxPairs)
+    );
+  } else if (isIndividual) {
+    const limit = tournament.maxPairs * 2;
+    spotsLeft = limit - totalCount;
+    isFull = spotsLeft <= 0;
+  } else {
+    spotsLeft = tournament.maxPairs - totalCount;
+    isFull = spotsLeft <= 0;
+  }
+
+  const needsGenderProfile = isIndividual && isMixed && member && !member.gender;
 
   return (
     <div style={{ minHeight: "100vh", background: "#F5F5F5", fontFamily: "var(--font-inter), sans-serif" }}>
@@ -59,7 +88,9 @@ export default async function InscricaoPage({ params }: { params: Promise<{ id: 
               ["📍", tournament.location],
               ["🎾", `${FORMAT_LABEL[tournament.format]} · ${CAT_LABEL[tournament.category]}`],
               ["👥", tournament.registrationType === "PAIRS" ? "Inscrição em dupla" : "Inscrição individual"],
-              ["🎫", isFull ? "Esgotado" : `${spotsLeft} vaga${spotsLeft !== 1 ? "s" : ""} restante${spotsLeft !== 1 ? "s" : ""}`],
+              ["🎫", isIndividual && isMixed
+                ? `${maleSpotsLeft > 0 ? maleSpotsLeft : "0"} vaga${maleSpotsLeft !== 1 ? "s" : ""} masc. · ${femaleSpotsLeft > 0 ? femaleSpotsLeft : "0"} vaga${femaleSpotsLeft !== 1 ? "s" : ""} fem.`
+                : isFull ? "Esgotado" : `${spotsLeft} vaga${spotsLeft !== 1 ? "s" : ""} restante${spotsLeft !== 1 ? "s" : ""}`],
             ].map(([icon, text]) => (
               <p key={text} style={{ fontSize: 13, color: "#bbb", margin: 0, display: "flex", gap: 6, alignItems: "center" }}>
                 <span>{icon}</span> {text}
@@ -133,8 +164,34 @@ export default async function InscricaoPage({ params }: { params: Promise<{ id: 
           </div>
         )}
 
-        {/* State: full */}
-        {member && tournament.status === "OPEN" && !existingRegistration && isFull && (
+        {/* State: gender not set (mixed individual) */}
+        {member && tournament.status === "OPEN" && !existingRegistration && needsGenderProfile && (
+          <div style={{ background: "#fff", borderRadius: 16, padding: 32, textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+            <p style={{ fontSize: 32, margin: "0 0 12px" }}>👤</p>
+            <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 18, color: "#111", margin: "0 0 8px" }}>DEFINE O TEU SEXO</p>
+            <p style={{ fontSize: 14, color: "#888", margin: "0 0 20px" }}>
+              Este torneio é de duplas mistas. Precisamos de saber o teu sexo para controlar as vagas.
+            </p>
+            <a href="/dashboard" style={{ display: "inline-block", background: "#F5C000", color: "#111", fontWeight: 700, padding: "12px 28px", borderRadius: 9, textDecoration: "none", fontSize: 15 }}>
+              Atualizar perfil
+            </a>
+          </div>
+        )}
+
+        {/* State: gender quota full */}
+        {member && tournament.status === "OPEN" && !existingRegistration && !needsGenderProfile && isGenderFull && (
+          <div style={{ background: "#fff", borderRadius: 16, padding: 32, textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+            <p style={{ fontSize: 32, margin: "0 0 12px" }}>🎾</p>
+            <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 18, color: "#111", margin: "0 0 8px" }}>VAGAS ESGOTADAS</p>
+            <p style={{ fontSize: 14, color: "#888" }}>
+              As vagas {member.gender === "MALE" ? "masculinas" : "femininas"} para este torneio estão preenchidas.
+              {member.gender === "MALE" ? ` Ainda há ${femaleSpotsLeft} vaga${femaleSpotsLeft !== 1 ? "s" : ""} femininas.` : ` Ainda há ${maleSpotsLeft} vaga${maleSpotsLeft !== 1 ? "s" : ""} masculinas.`}
+            </p>
+          </div>
+        )}
+
+        {/* State: full (all genders) */}
+        {member && tournament.status === "OPEN" && !existingRegistration && !needsGenderProfile && !isGenderFull && isFull && (
           <div style={{ background: "#fff", borderRadius: 16, padding: 32, textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
             <p style={{ fontSize: 32, margin: "0 0 12px" }}>🎾</p>
             <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 18, color: "#111", margin: "0 0 8px" }}>TORNEIO ESGOTADO</p>
@@ -143,7 +200,7 @@ export default async function InscricaoPage({ params }: { params: Promise<{ id: 
         )}
 
         {/* State: can register */}
-        {member && tournament.status === "OPEN" && !existingRegistration && !isFull && (
+        {member && tournament.status === "OPEN" && !existingRegistration && !needsGenderProfile && !isGenderFull && !isFull && (
           <RegistrationForm
             tournamentId={id}
             memberId={member.id}

@@ -96,19 +96,34 @@ model Tournament {
   updatedAt        DateTime                   @updatedAt
 
   registrations Registration[]
+  modalities    TournamentModality[]
   matches       Match[]
   rankingPoints RankingPoint[]
 }
 
-model Registration {
+model TournamentModality {
   id           String             @id @default(cuid())
-  tournament   Tournament         @relation(fields: [tournamentId], references: [id])
+  tournament   Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   tournamentId String
-  player1      Member             @relation("Player1", fields: [player1Id], references: [id])
+  category     TournamentCategory
+  maxPairs     Int
+  name         String?
+  createdAt    DateTime           @default(now())
+
+  registrations Registration[]
+}
+
+model Registration {
+  id           String              @id @default(cuid())
+  tournament   Tournament          @relation(fields: [tournamentId], references: [id])
+  tournamentId String
+  modality     TournamentModality? @relation(fields: [modalityId], references: [id])
+  modalityId   String?
+  player1      Member              @relation("Player1", fields: [player1Id], references: [id])
   player1Id    String
-  player2      Member?            @relation("Player2", fields: [player2Id], references: [id])
+  player2      Member?             @relation("Player2", fields: [player2Id], references: [id])
   player2Id    String?
-  status       RegistrationStatus @default(PENDING)
+  status       RegistrationStatus  @default(PENDING)
   createdAt    DateTime           @default(now())
 
   matchesAsP1 Match[] @relation("Pair1")
