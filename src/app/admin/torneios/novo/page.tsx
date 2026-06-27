@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { BracketBuilder, defaultBracket } from "@/components/bracket-builder";
+import type { FinalsBracketTemplate } from "@/components/bracket-builder";
 
 const inputStyle: React.CSSProperties = { width: "100%", padding: "10px 12px", border: "1.5px solid #e0e0e0", borderRadius: 8, fontSize: 14, fontFamily: "var(--font-inter), sans-serif", outline: "none", boxSizing: "border-box", color: "#111" };
 const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.05em" };
@@ -16,6 +18,7 @@ export default function NovoTorneioPage() {
   const [totalDurationMinutes, setTotalDurationMinutes] = useState(120);
   const [numGroups, setNumGroups] = useState(1);
   const [pairsAdvancing, setPairsAdvancing] = useState(0);
+  const [finalsTemplate, setFinalsTemplate] = useState<FinalsBracketTemplate>([]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -103,7 +106,7 @@ export default function NovoTorneioPage() {
                   <select name="numGroups" style={selectStyle} value={numGroups} onChange={(e) => {
                     const v = Number(e.target.value);
                     setNumGroups(v);
-                    if (v <= 1) setPairsAdvancing(0);
+                    if (v <= 1) { setPairsAdvancing(0); setFinalsTemplate([]); }
                   }}>
                     <option value={1}>1 — Pool único</option>
                     <option value={2}>2 grupos</option>
@@ -114,7 +117,7 @@ export default function NovoTorneioPage() {
                 {numGroups > 1 && (
                   <div>
                     <label style={labelStyle}>Duplas que avançam por grupo</label>
-                    <select name="pairsAdvancing" style={selectStyle} value={pairsAdvancing} onChange={(e) => setPairsAdvancing(Number(e.target.value))}>
+                    <select name="pairsAdvancing" style={selectStyle} value={pairsAdvancing} onChange={(e) => { const v = Number(e.target.value); setPairsAdvancing(v); setFinalsTemplate(v > 0 ? defaultBracket(numGroups, v) : []); }}>
                       <option value={0}>0 — Sem finais, campeão por grupo</option>
                       <option value={1}>1 — Top 1 avança para final</option>
                       <option value={2}>2 — Top 2 avançam para final</option>
@@ -132,6 +135,21 @@ export default function NovoTorneioPage() {
                 {numGroups > 1 && pairsAdvancing === 0 ? ` · Campeão independente em cada grupo` : ""}
                 {numGroups <= 1 && " · Quadras = nº de duplas ÷ 2 · Todas as duplas jogam em simultâneo"}
               </div>
+
+              {numGroups > 1 && pairsAdvancing > 0 && (
+                <div style={{ background: "#fff", borderRadius: 10, border: "1.5px solid #eee", padding: "16px" }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px" }}>
+                    Cruzamentos da Fase Final
+                  </p>
+                  <BracketBuilder
+                    numGroups={numGroups}
+                    pairsAdvancing={pairsAdvancing}
+                    initial={finalsTemplate.length > 0 ? finalsTemplate : null}
+                    onChange={setFinalsTemplate}
+                  />
+                  <input type="hidden" name="finalsTemplate" value={JSON.stringify(finalsTemplate)} />
+                </div>
+              )}
             </div>
           )}
 

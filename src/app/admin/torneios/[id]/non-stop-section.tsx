@@ -2,7 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { generateNonStopSchedule, updateNonStopResult, resetBracket, assignGroups, completeGroupPhase, reopenGroupPhase, generateFinals, saveFinalsBracket } from "@/lib/actions";
-import type { BracketEntry, FinalsBracketTemplate } from "@/lib/actions";
+import type { FinalsBracketTemplate } from "@/lib/actions";
+import { BracketBuilder, slotLabel } from "@/components/bracket-builder";
+import type { BracketEntry } from "@/components/bracket-builder";
 
 type Registration = {
   id: string;
@@ -262,153 +264,6 @@ function GroupSection({
   );
 }
 
-// ── Bracket visual builder ────────────────────────────────────────────────────
-
-function slotLabel(slot: string): string {
-  const m = slot.match(/^G(\d+)R(\d+)$/);
-  if (!m) return slot;
-  const rank = parseInt(m[2]);
-  const grp = String.fromCharCode(64 + parseInt(m[1]));
-  return `${rank}º Grupo ${grp}`;
-}
-
-function defaultBracket(numGroups: number, pairsAdvancing: number): BracketEntry[] {
-  // Cross-group pattern: 1ºA vs 2ºB, 1ºB vs 2ºA, etc.
-  const entries: BracketEntry[] = [];
-  let pos = 1;
-  for (let rank = 1; rank <= pairsAdvancing; rank++) {
-    for (let g = 1; g <= numGroups; g++) {
-      const opponent = ((g - 1 + 1) % numGroups) + 1; // next group (wraps)
-      const oppRank = pairsAdvancing + 1 - rank; // cross rank
-      const slot1 = `G${g}R${rank}`;
-      const slot2 = `G${opponent}R${oppRank > 0 ? oppRank : rank}`;
-      if (slot1 < slot2) { // deduplicate symmetric pairs
-        entries.push({ round: 1, position: pos++, label: `Partida ${pos - 1}`, slot1, slot2 });
-      }
-    }
-  }
-  if (entries.length === 0) {
-    // fallback: all vs all
-    const slots: string[] = [];
-    for (let g = 1; g <= numGroups; g++) for (let r = 1; r <= pairsAdvancing; r++) slots.push(`G${g}R${r}`);
-    let p = 1;
-    for (let i = 0; i < slots.length; i++) for (let j = i + 1; j < slots.length; j++) {
-      entries.push({ round: 1, position: p++, label: `Partida ${p - 1}`, slot1: slots[i], slot2: slots[j] });
-    }
-  }
-  return entries;
-}
-
-function BracketBuilder({
-  numGroups,
-  pairsAdvancing,
-  initial,
-  tournamentId,
-  onSaved,
-}: {
-  numGroups: number;
-  pairsAdvancing: number;
-  initial: FinalsBracketTemplate | null;
-  tournamentId: string;
-  onSaved: () => void;
-}) {
-  const [entries, setEntries] = useState<BracketEntry[]>(
-    initial && initial.length > 0 ? initial : defaultBracket(numGroups, pairsAdvancing)
-  );
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState("");
-
-  // Build slot options
-  const slots: { key: string; label: string }[] = [];
-  for (let g = 1; g <= numGroups; g++)
-    for (let r = 1; r <= pairsAdvancing; r++)
-      slots.push({ key: `G${g}R${r}`, label: slotLabel(`G${g}R${r}`) });
-
-  function addMatch() {
-    const next = entries.length + 1;
-    setEntries([...entries, { round: 1, position: next, label: `Partida ${next}`, slot1: slots[0]?.key ?? "", slot2: slots[1]?.key ?? "" }]);
-  }
-
-  function removeMatch(idx: number) {
-    setEntries(entries.filter((_, i) => i !== idx).map((e, i) => ({ ...e, position: i + 1 })));
-  }
-
-  function updateEntry(idx: number, field: keyof BracketEntry, value: string | number) {
-    setEntries(entries.map((e, i) => i === idx ? { ...e, [field]: value } : e));
-  }
-
-  function handleSave() {
-    if (entries.some(e => !e.slot1 || !e.slot2)) { setError("Todos os cruzamentos precisam de ter dois participantes."); return; }
-    setError("");
-    startTransition(async () => {
-      try {
-        await saveFinalsBracket(tournamentId, entries);
-        onSaved();
-      } catch (e) { setError((e as Error).message); }
-    });
-  }
-
-  const selectSt: React.CSSProperties = { padding: "6px 10px", border: "1.5px solid #e0e0e0", borderRadius: 7, fontSize: 13, background: "#fff", cursor: "pointer", color: "#111", fontFamily: "var(--font-inter), sans-serif" };
-
-  return (
-    <div style={{ padding: "20px 24px" }}>
-      <div style={{ marginBottom: 16 }}>
-        <p style={{ fontSize: 13, color: "#555", margin: "0 0 4px" }}>
-          Define os cruzamentos da fase final. Usa os slots abaixo para indicar quem joga com quem.
-        </p>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-          {slots.map(s => (
-            <span key={s.key} style={{ background: "#F5C000", color: "#111", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99 }}>{s.label}</span>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {entries.map((entry, idx) => (
-          <div key={idx} style={{ display: "grid", gridTemplateColumns: "auto 1fr auto 1fr auto auto", gap: 8, alignItems: "center", background: "#F9F9F9", borderRadius: 10, padding: "10px 14px", border: "1px solid #eee" }}>
-            {/* Label / name */}
-            <input
-              value={entry.label}
-              onChange={e => updateEntry(idx, "label", e.target.value)}
-              placeholder="Ex: Semifinal 1"
-              style={{ ...selectSt, width: 130, padding: "6px 10px" }}
-            />
-            {/* Slot 1 */}
-            <select value={entry.slot1} onChange={e => updateEntry(idx, "slot1", e.target.value)} style={selectSt}>
-              {slots.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-            </select>
-            <span style={{ color: "#aaa", fontWeight: 700, textAlign: "center", fontSize: 13 }}>vs</span>
-            {/* Slot 2 */}
-            <select value={entry.slot2} onChange={e => updateEntry(idx, "slot2", e.target.value)} style={selectSt}>
-              {slots.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-            </select>
-            {/* Round */}
-            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ fontSize: 11, color: "#888" }}>Ronda</span>
-              <select value={entry.round} onChange={e => updateEntry(idx, "round", Number(e.target.value))} style={{ ...selectSt, width: 58 }}>
-                {[1, 2, 3, 4].map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-            </div>
-            {/* Remove */}
-            <button onClick={() => removeMatch(idx)} style={{ background: "#FFEAEA", border: "none", borderRadius: 7, padding: "6px 10px", fontSize: 13, color: "#d32f2f", cursor: "pointer", fontWeight: 700 }}>×</button>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: "flex", gap: 10, marginTop: 14, alignItems: "center" }}>
-        <button onClick={addMatch} style={{ background: "#F0F0F0", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#555", cursor: "pointer" }}>
-          + Adicionar partida
-        </button>
-        <div style={{ flex: 1 }} />
-        {error && <span style={{ fontSize: 12, color: "#d32f2f" }}>{error}</span>}
-        <button onClick={handleSave} disabled={pending || entries.length === 0} style={{ background: "#111", border: "none", borderRadius: 8, padding: "9px 20px", fontSize: 13, fontWeight: 700, color: "#F5C000", cursor: "pointer" }}>
-          {pending ? "A guardar…" : "Confirmar cruzamentos →"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ── Finals section (after bracket configured) ─────────────────────────────────
 
 function FinalsSection({
@@ -487,13 +342,21 @@ function FinalsSection({
 
       {/* Bracket builder */}
       {editing && (
-        <BracketBuilder
-          numGroups={numGroups}
-          pairsAdvancing={pairsAdvancing}
-          initial={finalsTemplate}
-          tournamentId={tournamentId}
-          onSaved={() => setEditing(false)}
-        />
+        <div style={{ padding: "20px 24px" }}>
+          <p style={{ fontSize: 13, color: "#555", margin: "0 0 12px" }}>
+            Define os cruzamentos da fase final. Indica quem joga com quem e dá um nome a cada partida.
+          </p>
+          <BracketBuilder
+            numGroups={numGroups}
+            pairsAdvancing={pairsAdvancing}
+            initial={finalsTemplate}
+            onSave={async (template) => {
+              await saveFinalsBracket(tournamentId, template);
+              setEditing(false);
+            }}
+            onCancel={() => setEditing(false)}
+          />
+        </div>
       )}
 
       {/* Preview of configured bracket (when no matches yet) */}

@@ -19,12 +19,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const body = await req.json();
 
   const numericFields = new Set(["maxPairs", "durationMinutes", "totalDurationMinutes", "numGroups", "pairsAdvancing"]);
-  const allowed = ["name", "date", "location", "format", "category", "registrationType", "maxPairs", "description", "durationMinutes", "totalDurationMinutes", "numGroups", "pairsAdvancing"];
+  const jsonFields = new Set(["finalsTemplate"]);
+  const allowed = ["name", "date", "location", "format", "category", "registrationType", "maxPairs", "description", "durationMinutes", "totalDurationMinutes", "numGroups", "pairsAdvancing", "finalsTemplate"];
   const data: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) {
       if (key === "date") data[key] = new Date(body[key] as string);
       else if (numericFields.has(key)) data[key] = body[key] !== "" && body[key] !== null ? Number(body[key]) : null;
+      else if (jsonFields.has(key)) {
+        const v = body[key];
+        data[key] = v ? (typeof v === "string" ? JSON.parse(v) : v) : null;
+      }
       else if (key === "description") data[key] = (body[key] as string) || null;
       else data[key] = body[key];
     }

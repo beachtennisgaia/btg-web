@@ -28,6 +28,8 @@ export async function POST(req: Request) {
   const totalDurationMinutes = formData.get("totalDurationMinutes") ? Number(formData.get("totalDurationMinutes")) : null;
   const numGroups = formData.get("numGroups") ? Number(formData.get("numGroups")) : null;
   const pairsAdvancing = formData.get("pairsAdvancing") !== null && formData.get("pairsAdvancing") !== "" ? Number(formData.get("pairsAdvancing")) : null;
+  const finalsTemplateRaw = formData.get("finalsTemplate") as string | null;
+  const finalsTemplate = finalsTemplateRaw ? JSON.parse(finalsTemplateRaw) : null;
 
   if (!name || !date || !location) {
     return NextResponse.json({ error: "Campos obrigatórios em falta" }, { status: 400 });
@@ -47,6 +49,7 @@ export async function POST(req: Request) {
       totalDurationMinutes,
       numGroups,
       pairsAdvancing,
+      finalsTemplate,
       status: "DRAFT",
     },
   });
