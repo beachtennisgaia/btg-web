@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SignInButton, SignUpButton } from "@clerk/nextjs";
 import { Nav } from "@/components/nav";
 import { db } from "@/lib/db";
+import { HeroSlideshow } from "@/components/hero-slideshow";
 
 export const revalidate = 60;
 
@@ -17,7 +18,7 @@ const BADGE = [
 ];
 
 export default async function HomePage() {
-  const [memberCount, finishedCount, upcomingTournaments, members] = await Promise.all([
+  const [memberCount, finishedCount, upcomingTournaments, members, heroImages] = await Promise.all([
     db.member.count(),
     db.tournament.count({ where: { status: "FINISHED" } }),
     db.tournament.findMany({
@@ -29,6 +30,7 @@ export default async function HomePage() {
     db.member.findMany({
       include: { rankingPoints: { where: { year: YEAR } } },
     }),
+    db.heroImage.findMany({ where: { active: true }, orderBy: { order: "asc" }, select: { url: true } }),
   ]);
 
   const rankings = members
@@ -50,14 +52,7 @@ export default async function HomePage() {
 
       {/* HERO */}
       <section style={{ position: "relative", minHeight: 520, display: "flex", alignItems: "center", overflow: "hidden" }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=1600&q=80"
-          alt=""
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
-        />
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(10,10,10,0.92) 40%, rgba(10,10,10,0.55) 70%, rgba(10,10,10,0.25) 100%)" }} />
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 80, background: "linear-gradient(to bottom, transparent, #111111 90%)" }} />
+        <HeroSlideshow urls={heroImages.map((i) => i.url)} />
         <div style={{ position: "relative", zIndex: 1, padding: "80px 32px", maxWidth: 640 }}>
           <span style={{ background: "#F5C000", color: "#111", fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 99, textTransform: "uppercase", letterSpacing: "0.08em" }}>
             Vila Nova de Gaia

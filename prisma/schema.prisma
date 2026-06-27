@@ -202,6 +202,14 @@ model Photo {
   createdAt DateTime @default(now())
 }
 
+model HeroImage {
+  id        String   @id @default(cuid())
+  url       String
+  order     Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
 model Event {
   id          String   @id @default(cuid())
   title       String

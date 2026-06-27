@@ -7,6 +7,7 @@ const NAV = [
   { href: "/admin", label: "Visão Geral", icon: "◈" },
   { href: "/admin/torneios", label: "Torneios", icon: "🎾" },
   { href: "/admin/socios", label: "Sócios", icon: "👥" },
+  { href: "/admin/hero", label: "Galeria Hero", icon: "🖼" },
   { href: "/admin/ranking", label: "Ranking", icon: "🏆" },
   { href: "/admin/comunidade", label: "Comunidade", icon: "📣" },
 ];
