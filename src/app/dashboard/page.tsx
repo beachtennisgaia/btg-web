@@ -17,6 +17,24 @@ function initials(name: string) {
   return name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 }
 
+function Row({ label, value, small }: { label: string; value: string; small?: boolean }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, paddingBottom: 8, borderBottom: "1px solid #f5f5f5" }}>
+      <span style={{ fontSize: 11, color: "#aaa", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: small ? 12 : 13, color: "#333", fontWeight: 500, textAlign: "right", wordBreak: "break-all" }}>{value}</span>
+    </div>
+  );
+}
+
+function Stat({ label, value, highlight, ok }: { label: string; value: string; highlight?: boolean; ok?: boolean }) {
+  return (
+    <div style={{ textAlign: "center", background: highlight ? "#FFFDE7" : ok ? "#F0FFF4" : "#F9F9F9", borderRadius: 10, padding: "12px 8px" }}>
+      <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 20, fontWeight: 700, color: "#111", margin: 0 }}>{value}</p>
+      <p style={{ fontSize: 10, color: "#888", margin: "3px 0 0", textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</p>
+    </div>
+  );
+}
+
 export default async function DashboardPage() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
@@ -85,13 +103,13 @@ export default async function DashboardPage() {
 
       <div className="btg-dash-layout">
 
-        {/* LEFT — Member card */}
-        <div className="btg-member-card">
+        {/* COL 1 — Perfil */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ background: "#fff", borderRadius: 20, overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.09)" }}>
+            {/* Identity header */}
             <div style={{ background: "linear-gradient(135deg, #111 60%, #222)", padding: "24px 20px", position: "relative" }}>
-              {/* Watermark logo */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/btg-logo-white.png" alt="" aria-hidden style={{ position: "absolute", top: 10, right: 10, height: 52, width: "auto", opacity: 0.14, pointerEvents: "none" }} />
+              <img src="/btg-logo-white.png" alt="" aria-hidden style={{ position: "absolute", top: 10, right: 10, height: 44, width: "auto", opacity: 0.12, pointerEvents: "none" }} />
               {member.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={member.avatarUrl} alt="" style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", marginBottom: 12 }} />
@@ -100,47 +118,23 @@ export default async function DashboardPage() {
                   {initials(member.name)}
                 </div>
               )}
-              <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 20, fontWeight: 700, color: "#fff", margin: 0, lineHeight: 1.2 }}>{member.name}</p>
-              <p style={{ fontSize: 13, color: "#F5C000", margin: "4px 0 0", fontWeight: 500 }}>
-                {member.memberNumber ? `Sócio nº ${String(member.memberNumber).padStart(3, "0")}` : "Sócio BTG"} · {LEVEL_LABEL[member.level]}
+              <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 19, fontWeight: 700, color: "#fff", margin: 0, lineHeight: 1.2 }}>{member.name}</p>
+              <p style={{ fontSize: 12, color: "#F5C000", margin: "4px 0 0", fontWeight: 600 }}>
+                {member.memberNumber ? `Sócio nº ${String(member.memberNumber).padStart(3, "0")}` : "Sócio BTG"}
               </p>
             </div>
-            <div style={{ padding: "16px 20px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-                <div style={{ textAlign: "center", background: "#F9F9F9", borderRadius: 10, padding: 12 }}>
-                  <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 22, fontWeight: 700, color: "#111", margin: 0 }}>{tournaments}</p>
-                  <p style={{ fontSize: 11, color: "#888", margin: "2px 0 0" }}>Torneios</p>
-                </div>
-                <div style={{ textAlign: "center", background: "#FFFDE7", borderRadius: 10, padding: 12 }}>
-                  <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 22, fontWeight: 700, color: "#111", margin: 0 }}>{totalPoints > 0 ? totalPoints.toLocaleString("pt-PT") : "—"}</p>
-                  <p style={{ fontSize: 11, color: "#888", margin: "2px 0 0" }}>Pontos {YEAR}</p>
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-                <div style={{ textAlign: "center", background: "#F9F9F9", borderRadius: 10, padding: 12 }}>
-                  <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 22, fontWeight: 700, color: "#111", margin: 0 }}>{rankLabel}</p>
-                  <p style={{ fontSize: 11, color: "#888", margin: "2px 0 0" }}>Ranking</p>
-                </div>
-                <div style={{ textAlign: "center", background: "#F9F9F9", borderRadius: 10, padding: 12 }}>
-                  <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 22, fontWeight: 700, color: "#111", margin: 0 }}>{member.quotaYear === YEAR ? "✓" : "—"}</p>
-                  <p style={{ fontSize: 11, color: "#888", margin: "2px 0 0" }}>Quota {YEAR}</p>
-                </div>
-              </div>
-              {/* Quota status banner */}
-              <div style={{ background: member.quotaYear === YEAR ? "#F5C000" : "#F0F0F0", borderRadius: 8, padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: member.quotaYear === YEAR ? "#111" : "#888" }}>Quota {YEAR}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: member.quotaYear === YEAR ? "#111" : "#aaa", background: "#fff", padding: "2px 8px", borderRadius: 99 }}>
-                  {member.quotaYear === YEAR ? "Paga ✓" : "Por pagar"}
-                </span>
-              </div>
+            {/* Contact details */}
+            <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+              <Row label="Nível" value={LEVEL_LABEL[member.level]} />
+              <Row label="Email" value={member.email} small />
+              {member.phone && <Row label="Telm." value={member.phone} />}
+              {member.gender && <Row label="Sexo" value={member.gender === "MALE" ? "Masculino" : "Feminino"} />}
             </div>
           </div>
         </div>
 
-        {/* RIGHT — Main content */}
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 16 }}>
-
-          {/* Upcoming registrations */}
+        {/* COL 2 — Inscrições */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
           <div style={{ background: "#fff", borderRadius: 20, overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.08)" }}>
             <div style={{ background: "#111", padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 18, fontWeight: 600, color: "#fff", letterSpacing: "0.04em" }}>
@@ -150,39 +144,46 @@ export default async function DashboardPage() {
             </div>
             <MyRegistrations registrations={allRegs} />
           </div>
+        </div>
 
-          {/* Ranking history */}
+        {/* COL 3 — Estatísticas */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Stats grid */}
+          <div style={{ background: "#fff", borderRadius: 20, overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.09)" }}>
+            <div style={{ background: "#F5C000", padding: "14px 20px" }}>
+              <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 700, color: "#111", letterSpacing: "0.04em" }}>ESTATÍSTICAS</span>
+            </div>
+            <div style={{ padding: "16px 16px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <Stat label="Torneios" value={String(tournaments)} />
+              <Stat label={`Pontos ${YEAR}`} value={totalPoints > 0 ? totalPoints.toLocaleString("pt-PT") : "—"} highlight />
+              <Stat label="Ranking" value={rankLabel} />
+              <Stat label={`Quota ${YEAR}`} value={member.quotaYear === YEAR ? "Paga ✓" : "—"} ok={member.quotaYear === YEAR} />
+            </div>
+          </div>
+
+          {/* Points history */}
           <div style={{ background: "#fff", borderRadius: 20, overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.08)" }}>
-            <div style={{ background: "#F5C000", padding: "16px 24px" }}>
-              <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 18, fontWeight: 600, color: "#111", letterSpacing: "0.04em" }}>
-                PONTOS {YEAR}
-              </span>
+            <div style={{ background: "#111", padding: "14px 20px" }}>
+              <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 700, color: "#F5C000", letterSpacing: "0.04em" }}>PONTOS {YEAR}</span>
             </div>
             {member.rankingPoints.length === 0 ? (
-              <div style={{ padding: "32px 24px", textAlign: "center" }}>
-                <p style={{ fontSize: 14, color: "#888", margin: 0 }}>Ainda sem pontos registados em {YEAR}. Os pontos são atribuídos após cada torneio BTG.</p>
+              <div style={{ padding: "24px 16px", textAlign: "center" }}>
+                <p style={{ fontSize: 13, color: "#aaa", margin: 0, lineHeight: 1.5 }}>Pontos atribuídos após cada torneio BTG.</p>
               </div>
             ) : (
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ background: "#F9F9F9", borderBottom: "1px solid #eee" }}>
-                    {["Torneio", "Pontos"].map((h, i) => (
-                      <th key={h} style={{ padding: "10px 24px", textAlign: i === 0 ? "left" : "right", fontSize: 11, color: "#999", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
                 <tbody>
                   {member.rankingPoints.map((rp) => (
                     <tr key={rp.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
-                      <td style={{ padding: "12px 24px", fontSize: 14, color: "#333" }}>Torneio BTG</td>
-                      <td style={{ padding: "12px 24px", textAlign: "right", fontWeight: 700, fontSize: 15, color: "#111" }}>
+                      <td style={{ padding: "10px 16px", fontSize: 13, color: "#555" }}>Torneio BTG</td>
+                      <td style={{ padding: "10px 16px", textAlign: "right", fontWeight: 700, fontSize: 14, color: "#111" }}>
                         {rp.points.toLocaleString("pt-PT")}
                       </td>
                     </tr>
                   ))}
                   <tr style={{ background: "#FFFDE7" }}>
-                    <td style={{ padding: "12px 24px", fontSize: 13, fontWeight: 700, color: "#111" }}>Total {YEAR}</td>
-                    <td style={{ padding: "12px 24px", textAlign: "right", fontWeight: 800, fontSize: 16, color: "#111" }}>
+                    <td style={{ padding: "10px 16px", fontSize: 12, fontWeight: 700, color: "#111" }}>Total</td>
+                    <td style={{ padding: "10px 16px", textAlign: "right", fontWeight: 800, fontSize: 15, color: "#111" }}>
                       {totalPoints.toLocaleString("pt-PT")}
                     </td>
                   </tr>
@@ -190,8 +191,8 @@ export default async function DashboardPage() {
               </table>
             )}
           </div>
-
         </div>
+
       </div>
     </div>
   );
