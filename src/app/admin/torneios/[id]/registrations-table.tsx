@@ -7,6 +7,8 @@ type Reg = {
   id: string;
   status: string;
   createdAt: Date;
+  player1Id: string;
+  player2Id: string | null;
   player1: { name: string };
   player2: { name: string } | null;
 };
@@ -49,9 +51,21 @@ export function RegistrationsTable({ registrations, tournamentStatus }: { regist
     );
   }
 
-  const confirmed = registrations.filter((r) => r.status === "CONFIRMED").length;
-  const pending   = registrations.filter((r) => r.status === "PENDING").length;
-  const cancelled = registrations.filter((r) => r.status === "CANCELLED").length;
+  // IDs of players who were absorbed into a pair by the sorteio:
+  // their solo registration was cancelled but they appear as player2 in another registration
+  const player2Ids = new Set(registrations.filter((r) => r.player2Id).map((r) => r.player2Id!));
+  const absorbedByDraw = new Set(
+    registrations
+      .filter((r) => r.status === "CANCELLED" && !r.player2Id && player2Ids.has(r.player1Id))
+      .map((r) => r.id)
+  );
+
+  // Visible registrations: all except those silently absorbed by the draw
+  const visible = registrations.filter((r) => !absorbedByDraw.has(r.id));
+
+  const confirmed = visible.filter((r) => r.status === "CONFIRMED").length;
+  const pending   = visible.filter((r) => r.status === "PENDING").length;
+  const cancelled = visible.filter((r) => r.status === "CANCELLED").length;
 
   const canManage = tournamentStatus === "OPEN" || tournamentStatus === "ONGOING";
 
@@ -84,7 +98,7 @@ export function RegistrationsTable({ registrations, tournamentStatus }: { regist
           </tr>
         </thead>
         <tbody>
-          {registrations.map((reg, i) => {
+          {visible.map((reg, i) => {
             const s = STATUS[reg.status];
             return (
               <tr key={reg.id} style={{ borderBottom: "1px solid #f5f5f5", background: reg.status === "CANCELLED" ? "#FAFAFA" : "#fff" }}>
