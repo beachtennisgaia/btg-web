@@ -143,13 +143,20 @@ export async function createComment(postId: string, content: string) {
   revalidatePath("/comunidade");
 }
 
-export async function createPost(content: string) {
+export async function createPost(content: string, photoUrls: string[] = []) {
   const { userId } = await auth();
   if (!userId) throw new Error("Não autenticado");
   const member = await db.member.findUnique({ where: { clerkId: userId } });
   if (!member) throw new Error("Perfil não encontrado");
   await db.post.create({
-    data: { authorId: member.id, type: "COMMUNITY", content },
+    data: {
+      authorId: member.id,
+      type: "COMMUNITY",
+      content,
+      photos: photoUrls.length > 0
+        ? { create: photoUrls.map((url) => ({ url })) }
+        : undefined,
+    },
   });
   revalidatePath("/comunidade");
 }

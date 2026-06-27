@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
+import { upload } from "@vercel/blob/client";
 import { createPost } from "@/lib/actions";
 
 function initials(name: string) {
@@ -10,28 +11,70 @@ function initials(name: string) {
 export function ComposeBox({ memberName }: { memberName: string }) {
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [pending, startTransition] = useTransition();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleOpen() {
     setOpen(true);
     setTimeout(() => textareaRef.current?.focus(), 50);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(e.target.files ?? []).slice(0, 4);
+    setFiles(selected);
+    setPreviews(selected.map((f) => URL.createObjectURL(f)));
+    if (e.target) e.target.value = "";
+  }
+
+  function removeFile(i: number) {
+    setFiles((prev) => prev.filter((_, idx) => idx !== i));
+    setPreviews((prev) => {
+      URL.revokeObjectURL(prev[i]);
+      return prev.filter((_, idx) => idx !== i);
+    });
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!content.trim()) return;
+
+    setUploading(true);
+    let photoUrls: string[] = [];
+    try {
+      photoUrls = await Promise.all(
+        files.map((file) =>
+          upload(`comunidade/${Date.now()}-${file.name}`, file, {
+            access: "public",
+            handleUploadUrl: "/api/upload",
+          }).then((b) => b.url)
+        )
+      );
+    } finally {
+      setUploading(false);
+    }
+
     startTransition(async () => {
-      await createPost(content.trim());
+      await createPost(content.trim(), photoUrls);
       setContent("");
+      setFiles([]);
+      setPreviews([]);
       setOpen(false);
     });
   }
 
   function handleCancel() {
+    previews.forEach((p) => URL.revokeObjectURL(p));
     setContent("");
+    setFiles([]);
+    setPreviews([]);
     setOpen(false);
   }
+
+  const busy = uploading || pending;
 
   return (
     <div style={{ background: "#fff", borderRadius: 16, padding: "16px 20px", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", border: open ? "2px solid #F5C000" : "2px dashed #eee", transition: "border-color 0.15s" }}>
@@ -57,15 +100,59 @@ export function ComposeBox({ memberName }: { memberName: string }) {
               onChange={(e) => setContent(e.target.value)}
               placeholder="O que queres partilhar?"
               rows={3}
-              style={{
-                flex: 1, border: "none", outline: "none", resize: "none",
-                fontSize: 14, fontFamily: "var(--font-inter), sans-serif",
-                color: "#111", lineHeight: 1.6,
-              }}
+              style={{ flex: 1, border: "none", outline: "none", resize: "none", fontSize: 14, fontFamily: "var(--font-inter), sans-serif", color: "#111", lineHeight: 1.6 }}
             />
           </div>
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 8, borderTop: "1px solid #f0f0f0" }}>
-            <span style={{ fontSize: 12, color: content.length > 500 ? "#d32f2f" : "#ccc", alignSelf: "center", marginRight: "auto" }}>
+
+          {/* Image previews */}
+          {previews.length > 0 && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {previews.map((src, i) => (
+                <div key={i} style={{ position: "relative", width: 100, height: 100, borderRadius: 8, overflow: "hidden" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <button
+                    type="button"
+                    onClick={() => removeFile(i)}
+                    style={{ position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: "50%", background: "rgba(0,0,0,0.6)", border: "none", color: "#fff", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {previews.length < 4 && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{ width: 100, height: 100, borderRadius: 8, border: "2px dashed #ddd", background: "none", cursor: "pointer", color: "#bbb", fontSize: 24 }}
+                >
+                  +
+                </button>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 8, borderTop: "1px solid #f0f0f0" }}>
+            {/* Photo button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={files.length >= 4}
+              style={{ background: "none", border: "1.5px solid #eee", borderRadius: 8, padding: "6px 12px", fontSize: 14, cursor: files.length >= 4 ? "not-allowed" : "pointer", color: "#888" }}
+              title="Adicionar foto"
+            >
+              📷 Foto
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              multiple
+              onChange={handleFiles}
+              style={{ display: "none" }}
+            />
+
+            <span style={{ fontSize: 12, color: content.length > 500 ? "#d32f2f" : "#ccc", marginLeft: "auto" }}>
               {content.length}/500
             </span>
             <button
@@ -77,14 +164,14 @@ export function ComposeBox({ memberName }: { memberName: string }) {
             </button>
             <button
               type="submit"
-              disabled={pending || !content.trim() || content.length > 500}
+              disabled={busy || !content.trim() || content.length > 500}
               style={{
-                background: pending || !content.trim() || content.length > 500 ? "#ddd" : "#F5C000",
+                background: busy || !content.trim() || content.length > 500 ? "#ddd" : "#F5C000",
                 color: "#111", fontWeight: 700, padding: "8px 20px", borderRadius: 8, border: "none",
-                fontSize: 13, cursor: pending || !content.trim() ? "not-allowed" : "pointer",
+                fontSize: 13, cursor: busy || !content.trim() ? "not-allowed" : "pointer",
               }}
             >
-              {pending ? "A publicar…" : "Publicar"}
+              {uploading ? "A enviar fotos…" : pending ? "A publicar…" : "Publicar"}
             </button>
           </div>
         </form>
