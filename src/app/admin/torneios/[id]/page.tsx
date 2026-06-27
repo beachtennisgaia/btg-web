@@ -124,6 +124,7 @@ export default async function TorneioDetailPage({ params }: { params: Promise<{ 
             numGroups={tournament.numGroups}
             pairsAdvancing={tournament.pairsAdvancing}
             groupPhaseComplete={tournament.groupPhaseComplete}
+            finalsTemplate={tournament.finalsTemplate as import("@/lib/actions").FinalsBracketTemplate | null}
           />
         ) : (
           <MatchesSection

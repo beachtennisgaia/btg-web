@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { generateNonStopSchedule, updateNonStopResult, resetBracket, assignGroups, completeGroupPhase, reopenGroupPhase, generateFinals } from "@/lib/actions";
+import { generateNonStopSchedule, updateNonStopResult, resetBracket, assignGroups, completeGroupPhase, reopenGroupPhase, generateFinals, saveFinalsBracket } from "@/lib/actions";
+import type { BracketEntry, FinalsBracketTemplate } from "@/lib/actions";
 
 type Registration = {
   id: string;
@@ -19,6 +20,7 @@ type Match = {
   position: number;
   court: number | null;
   groupNumber: number | null;
+  label: string | null;
   pair1Id: string | null;
   pair2Id: string | null;
   score1: number | null;
@@ -260,61 +262,222 @@ function GroupSection({
   );
 }
 
+// ── Bracket visual builder ────────────────────────────────────────────────────
+
+function slotLabel(slot: string): string {
+  const m = slot.match(/^G(\d+)R(\d+)$/);
+  if (!m) return slot;
+  const rank = parseInt(m[2]);
+  const grp = String.fromCharCode(64 + parseInt(m[1]));
+  return `${rank}º Grupo ${grp}`;
+}
+
+function defaultBracket(numGroups: number, pairsAdvancing: number): BracketEntry[] {
+  // Cross-group pattern: 1ºA vs 2ºB, 1ºB vs 2ºA, etc.
+  const entries: BracketEntry[] = [];
+  let pos = 1;
+  for (let rank = 1; rank <= pairsAdvancing; rank++) {
+    for (let g = 1; g <= numGroups; g++) {
+      const opponent = ((g - 1 + 1) % numGroups) + 1; // next group (wraps)
+      const oppRank = pairsAdvancing + 1 - rank; // cross rank
+      const slot1 = `G${g}R${rank}`;
+      const slot2 = `G${opponent}R${oppRank > 0 ? oppRank : rank}`;
+      if (slot1 < slot2) { // deduplicate symmetric pairs
+        entries.push({ round: 1, position: pos++, label: `Partida ${pos - 1}`, slot1, slot2 });
+      }
+    }
+  }
+  if (entries.length === 0) {
+    // fallback: all vs all
+    const slots: string[] = [];
+    for (let g = 1; g <= numGroups; g++) for (let r = 1; r <= pairsAdvancing; r++) slots.push(`G${g}R${r}`);
+    let p = 1;
+    for (let i = 0; i < slots.length; i++) for (let j = i + 1; j < slots.length; j++) {
+      entries.push({ round: 1, position: p++, label: `Partida ${p - 1}`, slot1: slots[i], slot2: slots[j] });
+    }
+  }
+  return entries;
+}
+
+function BracketBuilder({
+  numGroups,
+  pairsAdvancing,
+  initial,
+  tournamentId,
+  onSaved,
+}: {
+  numGroups: number;
+  pairsAdvancing: number;
+  initial: FinalsBracketTemplate | null;
+  tournamentId: string;
+  onSaved: () => void;
+}) {
+  const [entries, setEntries] = useState<BracketEntry[]>(
+    initial && initial.length > 0 ? initial : defaultBracket(numGroups, pairsAdvancing)
+  );
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState("");
+
+  // Build slot options
+  const slots: { key: string; label: string }[] = [];
+  for (let g = 1; g <= numGroups; g++)
+    for (let r = 1; r <= pairsAdvancing; r++)
+      slots.push({ key: `G${g}R${r}`, label: slotLabel(`G${g}R${r}`) });
+
+  function addMatch() {
+    const next = entries.length + 1;
+    setEntries([...entries, { round: 1, position: next, label: `Partida ${next}`, slot1: slots[0]?.key ?? "", slot2: slots[1]?.key ?? "" }]);
+  }
+
+  function removeMatch(idx: number) {
+    setEntries(entries.filter((_, i) => i !== idx).map((e, i) => ({ ...e, position: i + 1 })));
+  }
+
+  function updateEntry(idx: number, field: keyof BracketEntry, value: string | number) {
+    setEntries(entries.map((e, i) => i === idx ? { ...e, [field]: value } : e));
+  }
+
+  function handleSave() {
+    if (entries.some(e => !e.slot1 || !e.slot2)) { setError("Todos os cruzamentos precisam de ter dois participantes."); return; }
+    setError("");
+    startTransition(async () => {
+      try {
+        await saveFinalsBracket(tournamentId, entries);
+        onSaved();
+      } catch (e) { setError((e as Error).message); }
+    });
+  }
+
+  const selectSt: React.CSSProperties = { padding: "6px 10px", border: "1.5px solid #e0e0e0", borderRadius: 7, fontSize: 13, background: "#fff", cursor: "pointer", color: "#111", fontFamily: "var(--font-inter), sans-serif" };
+
+  return (
+    <div style={{ padding: "20px 24px" }}>
+      <div style={{ marginBottom: 16 }}>
+        <p style={{ fontSize: 13, color: "#555", margin: "0 0 4px" }}>
+          Define os cruzamentos da fase final. Usa os slots abaixo para indicar quem joga com quem.
+        </p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+          {slots.map(s => (
+            <span key={s.key} style={{ background: "#F5C000", color: "#111", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99 }}>{s.label}</span>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {entries.map((entry, idx) => (
+          <div key={idx} style={{ display: "grid", gridTemplateColumns: "auto 1fr auto 1fr auto auto", gap: 8, alignItems: "center", background: "#F9F9F9", borderRadius: 10, padding: "10px 14px", border: "1px solid #eee" }}>
+            {/* Label / name */}
+            <input
+              value={entry.label}
+              onChange={e => updateEntry(idx, "label", e.target.value)}
+              placeholder="Ex: Semifinal 1"
+              style={{ ...selectSt, width: 130, padding: "6px 10px" }}
+            />
+            {/* Slot 1 */}
+            <select value={entry.slot1} onChange={e => updateEntry(idx, "slot1", e.target.value)} style={selectSt}>
+              {slots.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+            </select>
+            <span style={{ color: "#aaa", fontWeight: 700, textAlign: "center", fontSize: 13 }}>vs</span>
+            {/* Slot 2 */}
+            <select value={entry.slot2} onChange={e => updateEntry(idx, "slot2", e.target.value)} style={selectSt}>
+              {slots.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+            </select>
+            {/* Round */}
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ fontSize: 11, color: "#888" }}>Ronda</span>
+              <select value={entry.round} onChange={e => updateEntry(idx, "round", Number(e.target.value))} style={{ ...selectSt, width: 58 }}>
+                {[1, 2, 3, 4].map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            {/* Remove */}
+            <button onClick={() => removeMatch(idx)} style={{ background: "#FFEAEA", border: "none", borderRadius: 7, padding: "6px 10px", fontSize: 13, color: "#d32f2f", cursor: "pointer", fontWeight: 700 }}>×</button>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginTop: 14, alignItems: "center" }}>
+        <button onClick={addMatch} style={{ background: "#F0F0F0", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#555", cursor: "pointer" }}>
+          + Adicionar partida
+        </button>
+        <div style={{ flex: 1 }} />
+        {error && <span style={{ fontSize: 12, color: "#d32f2f" }}>{error}</span>}
+        <button onClick={handleSave} disabled={pending || entries.length === 0} style={{ background: "#111", border: "none", borderRadius: 8, padding: "9px 20px", fontSize: 13, fontWeight: 700, color: "#F5C000", cursor: "pointer" }}>
+          {pending ? "A guardar…" : "Confirmar cruzamentos →"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Finals section (after bracket configured) ─────────────────────────────────
+
 function FinalsSection({
   matches,
   regs,
   durationMinutes,
   tournamentId,
+  numGroups,
+  pairsAdvancing,
+  finalsTemplate,
 }: {
   matches: Match[];
   regs: Registration[];
   durationMinutes: number | null;
   tournamentId: string;
+  numGroups: number;
+  pairsAdvancing: number;
+  finalsTemplate: FinalsBracketTemplate | null;
 }) {
+  const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const finalsMatches = matches.filter((m) => m.groupNumber === 0);
   const rounds = [...new Set(finalsMatches.map((m) => m.round))].sort((a, b) => a - b);
   const completed = finalsMatches.filter((m) => m.completedAt).length;
+  const hasTemplate = finalsTemplate && finalsTemplate.length > 0;
 
   function handleGenerate() {
     setError("");
     startTransition(async () => {
-      try { await generateFinals(tournamentId); }
+      try { await generateFinals(tournamentId); setEditing(false); }
       catch (e) { setError((e as Error).message); }
     });
   }
 
-  function handleReset() {
-    if (!confirm("Apagar a fase final e regenerar?")) return;
-    setError("");
-    startTransition(async () => {
-      try { await generateFinals(tournamentId); }
-      catch (e) { setError((e as Error).message); }
-    });
+  function handleResetMatches() {
+    if (!confirm("Apagar as partidas da fase final e regenerar com os cruzamentos actuais?")) return;
+    handleGenerate();
   }
 
   return (
     <div style={{ marginTop: 24, background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+      {/* Header */}
       <div style={{ background: "#F5C000", padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 700, color: "#111", letterSpacing: "0.06em" }}>
-            FASE FINAL
-          </span>
+          <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 700, color: "#111", letterSpacing: "0.06em" }}>FASE FINAL</span>
           {finalsMatches.length > 0 && (
-            <span style={{ fontSize: 12, color: "#555", marginLeft: 10 }}>
-              {completed}/{finalsMatches.length} partidas
-            </span>
+            <span style={{ fontSize: 12, color: "#555", marginLeft: 10 }}>{completed}/{finalsMatches.length} partidas</span>
           )}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          {finalsMatches.length === 0 ? (
+          {!editing && (
+            <button onClick={() => setEditing(true)} style={{ background: "rgba(0,0,0,0.1)", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, color: "#111", cursor: "pointer" }}>
+              ✏️ {hasTemplate ? "Editar cruzamentos" : "Configurar cruzamentos"}
+            </button>
+          )}
+          {!editing && hasTemplate && finalsMatches.length === 0 && (
             <button onClick={handleGenerate} disabled={pending} style={{ background: "#111", border: "none", borderRadius: 8, padding: "7px 16px", fontWeight: 700, fontSize: 13, color: "#F5C000", cursor: "pointer" }}>
               {pending ? "A gerar…" : "Gerar Fase Final"}
             </button>
-          ) : (
-            <button onClick={handleReset} disabled={pending} style={{ background: "rgba(0,0,0,0.1)", border: "none", borderRadius: 8, padding: "7px 14px", fontWeight: 600, fontSize: 13, color: "#111", cursor: "pointer" }}>
+          )}
+          {!editing && finalsMatches.length > 0 && (
+            <button onClick={handleResetMatches} disabled={pending} style={{ background: "rgba(0,0,0,0.1)", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, color: "#111", cursor: "pointer" }}>
               🔄 Refazer
+            </button>
+          )}
+          {editing && (
+            <button onClick={() => setEditing(false)} style={{ background: "rgba(0,0,0,0.1)", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, color: "#111", cursor: "pointer" }}>
+              Cancelar
             </button>
           )}
         </div>
@@ -322,27 +485,78 @@ function FinalsSection({
 
       {error && <div style={{ padding: "10px 20px", background: "#FFF3F3", color: "#d32f2f", fontSize: 13 }}>{error}</div>}
 
-      {finalsMatches.length === 0 ? (
-        <div style={{ padding: "28px 20px", textAlign: "center", color: "#aaa", fontSize: 13 }}>
-          Clica em "Gerar Fase Final" para criar as partidas com os classificados de cada grupo.
-        </div>
-      ) : (
-        <>
-          {rounds.map((round) => (
-            <div key={round}>
-              <div style={{ padding: "7px 16px", background: "#FFFCE8", borderBottom: "1px solid #F5E000", borderTop: round > 1 ? "2px solid #F5E000" : undefined, display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontWeight: 700, fontSize: 11, color: "#7A5900", textTransform: "uppercase", letterSpacing: "0.06em" }}>Ronda Final {round}</span>
-                {durationMinutes && <span style={{ fontSize: 11, color: "#aaa" }}>{durationMinutes} min</span>}
-              </div>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <tbody>
-                  {finalsMatches.filter((m) => m.round === round).map((match) => (
-                    <GameRow key={match.id} match={match} regs={regs} />
-                  ))}
-                </tbody>
-              </table>
+      {/* Bracket builder */}
+      {editing && (
+        <BracketBuilder
+          numGroups={numGroups}
+          pairsAdvancing={pairsAdvancing}
+          initial={finalsTemplate}
+          tournamentId={tournamentId}
+          onSaved={() => setEditing(false)}
+        />
+      )}
+
+      {/* Preview of configured bracket (when no matches yet) */}
+      {!editing && hasTemplate && finalsMatches.length === 0 && (
+        <div style={{ padding: "16px 24px" }}>
+          <p style={{ fontSize: 12, color: "#888", margin: "0 0 12px", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.05em" }}>Cruzamentos configurados</p>
+          {Object.entries(
+            finalsTemplate!.reduce((acc, e) => { (acc[e.round] ??= []).push(e); return acc; }, {} as Record<number, BracketEntry[]>)
+          ).sort(([a], [b]) => Number(a) - Number(b)).map(([round, group]) => (
+            <div key={round} style={{ marginBottom: 16 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "#aaa", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Ronda {round}</p>
+              {group.map((e, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#FFFCE8", borderRadius: 8, marginBottom: 6, border: "1px solid #F5E080" }}>
+                  {e.label && <span style={{ fontSize: 11, fontWeight: 700, color: "#7A5900", minWidth: 90 }}>{e.label}</span>}
+                  <span style={{ fontWeight: 700, fontSize: 13, color: "#111" }}>{slotLabel(e.slot1)}</span>
+                  <span style={{ color: "#ccc", fontSize: 12 }}>vs</span>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: "#111" }}>{slotLabel(e.slot2)}</span>
+                </div>
+              ))}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* No template yet */}
+      {!editing && !hasTemplate && finalsMatches.length === 0 && (
+        <div style={{ padding: "28px 20px", textAlign: "center", color: "#aaa", fontSize: 13 }}>
+          Clica em "Configurar cruzamentos" para definir quem joga com quem na fase final.
+        </div>
+      )}
+
+      {/* Actual matches */}
+      {!editing && finalsMatches.length > 0 && (
+        <>
+          {rounds.map((round) => {
+            const roundMatches = finalsMatches.filter((m) => m.round === round);
+            return (
+              <div key={round}>
+                <div style={{ padding: "7px 16px", background: "#FFFCE8", borderBottom: "1px solid #F5E000", borderTop: round > 1 ? "2px solid #F5E000" : undefined }}>
+                  <span style={{ fontWeight: 700, fontSize: 11, color: "#7A5900", textTransform: "uppercase", letterSpacing: "0.06em" }}>Ronda Final {round}</span>
+                  {durationMinutes && <span style={{ fontSize: 11, color: "#aaa", marginLeft: 8 }}>{durationMinutes} min</span>}
+                </div>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <tbody>
+                    {roundMatches.map((match) => (
+                      <tr key={match.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
+                        {match.label && (
+                          <td style={{ padding: "0 16px", width: 110 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#7A5900", background: "#FFFCE8", borderRadius: 4, padding: "2px 7px", border: "1px solid #F5E080" }}>{match.label}</span>
+                          </td>
+                        )}
+                        <td colSpan={match.label ? 1 : 4} style={{ padding: 0 }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                            <tbody><GameRow match={match} regs={regs} /></tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
           <GroupStandings matches={finalsMatches} regs={regs} pairsAdvancing={0} groupLabel="Final" noFinals={true} />
         </>
       )}
@@ -360,6 +574,7 @@ export function NonStopSection({
   numGroups,
   pairsAdvancing,
   groupPhaseComplete,
+  finalsTemplate,
 }: {
   tournamentId: string;
   matches: Match[];
@@ -370,6 +585,7 @@ export function NonStopSection({
   numGroups: number | null;
   pairsAdvancing: number | null;
   groupPhaseComplete: boolean;
+  finalsTemplate: FinalsBracketTemplate | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
@@ -579,6 +795,9 @@ export function NonStopSection({
           regs={active}
           durationMinutes={durationMinutes}
           tournamentId={tournamentId}
+          numGroups={groups}
+          pairsAdvancing={advancing}
+          finalsTemplate={finalsTemplate}
         />
       )}
     </>

@@ -394,13 +394,22 @@ export async function reopenGroupPhase(tournamentId: string) {
   revalidatePath(`/admin/torneios/${tournamentId}`);
 }
 
+export type BracketEntry = { round: number; position: number; label: string; slot1: string; slot2: string };
+export type FinalsBracketTemplate = BracketEntry[];
+
+export async function saveFinalsBracket(tournamentId: string, template: BracketEntry[]) {
+  await requireAdmin();
+  await db.tournament.update({ where: { id: tournamentId }, data: { finalsTemplate: template } });
+  revalidatePath(`/admin/torneios/${tournamentId}`);
+}
+
 export async function generateFinals(tournamentId: string) {
   await requireAdmin();
   await db.match.deleteMany({ where: { tournamentId, groupNumber: 0 } });
 
   const tournament = await db.tournament.findUnique({
     where: { id: tournamentId },
-    select: { durationMinutes: true, totalDurationMinutes: true, numGroups: true, pairsAdvancing: true },
+    select: { durationMinutes: true, totalDurationMinutes: true, numGroups: true, pairsAdvancing: true, finalsTemplate: true },
   });
   const numGroups = tournament?.numGroups ?? 1;
   const pairsAdvancing = tournament?.pairsAdvancing ?? 0;
@@ -411,23 +420,50 @@ export async function generateFinals(tournamentId: string) {
     db.registration.findMany({ where: { tournamentId, status: "CONFIRMED" } }),
   ]);
 
-  const finalists: string[] = [];
+  // Build per-group standings to resolve slot keys like "G1R1" → registration ID
+  const groupStandings: Record<number, string[]> = {};
   for (let g = 1; g <= numGroups; g++) {
     const groupMatches = allMatches.filter((m) => m.groupNumber === g);
     const groupRegIds = allRegs.filter((r) => r.groupNumber === g).map((r) => r.id);
-    const ranked = computeGroupStandings(groupMatches, groupRegIds);
-    finalists.push(...ranked.slice(0, pairsAdvancing).map(([id]) => id));
+    groupStandings[g] = computeGroupStandings(groupMatches, groupRegIds).map(([id]) => id);
   }
 
-  if (finalists.length < 2) throw new Error("Não há finalistas suficientes");
+  function resolveSlot(slot: string): string | null {
+    const match = slot.match(/^G(\d+)R(\d+)$/);
+    if (!match) return null;
+    const g = parseInt(match[1]);
+    const r = parseInt(match[2]);
+    return groupStandings[g]?.[r - 1] ?? null;
+  }
 
-  const maxRoundsFromTime =
-    tournament?.durationMinutes && tournament?.totalDurationMinutes
-      ? Math.floor(tournament.totalDurationMinutes / tournament.durationMinutes)
-      : 999;
+  const template = (tournament?.finalsTemplate ?? null) as BracketEntry[] | null;
 
-  const finalsMatchData = circleRoundRobin(finalists, maxRoundsFromTime, 0, tournamentId);
-  await db.match.createMany({ data: finalsMatchData });
+  let matchData: { tournamentId: string; round: number; position: number; groupNumber: number; label: string | null; pair1Id: string | null; pair2Id: string | null; winnerId: null; completedAt: null }[] = [];
+
+  if (template && template.length > 0) {
+    // Use configured bracket
+    for (const entry of template) {
+      const pair1Id = resolveSlot(entry.slot1);
+      const pair2Id = resolveSlot(entry.slot2);
+      if (!pair1Id || !pair2Id) throw new Error(`Slot inválido ou dupla não encontrada: ${entry.slot1} / ${entry.slot2}`);
+      matchData.push({ tournamentId, round: entry.round, position: entry.position, groupNumber: 0, label: entry.label ?? null, pair1Id, pair2Id, winnerId: null, completedAt: null });
+    }
+  } else {
+    // Fallback: auto round-robin among finalists
+    const finalists: string[] = [];
+    for (let g = 1; g <= numGroups; g++) {
+      finalists.push(...(groupStandings[g] ?? []).slice(0, pairsAdvancing));
+    }
+    if (finalists.length < 2) throw new Error("Não há finalistas suficientes");
+    const maxRoundsFromTime =
+      tournament?.durationMinutes && tournament?.totalDurationMinutes
+        ? Math.floor(tournament.totalDurationMinutes / tournament.durationMinutes)
+        : 999;
+    const rr = circleRoundRobin(finalists, maxRoundsFromTime, 0, tournamentId);
+    matchData = rr.map(({ court: _c, groupNumber, ...m }) => ({ ...m, groupNumber: groupNumber ?? 0, label: null }));
+  }
+
+  await db.match.createMany({ data: matchData });
   revalidatePath(`/admin/torneios/${tournamentId}`);
 }
 
