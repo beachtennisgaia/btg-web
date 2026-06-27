@@ -14,6 +14,7 @@ export default function NovoTorneioPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [format, setFormat] = useState("ELIMINATION");
+  const [isPaid, setIsPaid] = useState(false);
   const [durationMinutes, setDurationMinutes] = useState(12);
   const [totalDurationMinutes, setTotalDurationMinutes] = useState(120);
   const [numGroups, setNumGroups] = useState(1);
@@ -116,6 +117,23 @@ export default function NovoTorneioPage() {
             <div>
               <label style={labelStyle}>Descrição</label>
               <textarea name="description" rows={3} placeholder="Informações adicionais sobre o torneio..." style={{ ...inputStyle, resize: "vertical" }} />
+            </div>
+
+            {/* Payment */}
+            <div style={{ display: "grid", gridTemplateColumns: isPaid ? "1fr 1fr" : "1fr", gap: 14 }}>
+              <div>
+                <label style={labelStyle}>Inscrição paga?</label>
+                <select name="isPaid" style={selectStyle} value={isPaid ? "true" : "false"} onChange={(e) => setIsPaid(e.target.value === "true")}>
+                  <option value="false">Não — torneio gratuito</option>
+                  <option value="true">Sim — participantes pagam</option>
+                </select>
+              </div>
+              {isPaid && (
+                <div>
+                  <label style={labelStyle}>Preço por participante (€)</label>
+                  <input name="pricePerPlayer" type="number" min={0} step={0.5} required placeholder="Ex: 5" style={inputStyle} />
+                </div>
+              )}
             </div>
           </div>
 

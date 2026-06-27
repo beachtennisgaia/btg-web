@@ -18,6 +18,8 @@ type Tournament = {
   numGroups: number | null;
   pairsAdvancing: number | null;
   finalsTemplate: FinalsBracketTemplate | null;
+  isPaid: boolean;
+  pricePerPlayer: number | null;
 };
 
 export function EditTournamentForm({ tournament }: { tournament: Tournament }) {
@@ -25,6 +27,7 @@ export function EditTournamentForm({ tournament }: { tournament: Tournament }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [format, setFormat] = useState(tournament.format);
+  const [isPaid, setIsPaid] = useState(tournament.isPaid);
   const [durationMinutes, setDurationMinutes] = useState(tournament.durationMinutes ?? 12);
   const [totalDurationMinutes, setTotalDurationMinutes] = useState(tournament.totalDurationMinutes ?? 120);
   const [numGroups, setNumGroups] = useState(tournament.numGroups ?? 1);
@@ -125,6 +128,23 @@ export function EditTournamentForm({ tournament }: { tournament: Tournament }) {
           <div>
             <label style={labelStyle}>Descrição</label>
             <textarea name="description" rows={3} defaultValue={tournament.description} placeholder="Informações adicionais sobre o torneio..." style={{ ...inputStyle, resize: "vertical" }} />
+          </div>
+
+          {/* Payment */}
+          <div style={{ display: "grid", gridTemplateColumns: isPaid ? "1fr 1fr" : "1fr", gap: 14 }}>
+            <div>
+              <label style={labelStyle}>Inscrição paga?</label>
+              <select name="isPaid" style={selectStyle} value={isPaid ? "true" : "false"} onChange={(e) => setIsPaid(e.target.value === "true")}>
+                <option value="false">Não — torneio gratuito</option>
+                <option value="true">Sim — participantes pagam</option>
+              </select>
+            </div>
+            {isPaid && (
+              <div>
+                <label style={labelStyle}>Preço por participante (€)</label>
+                <input name="pricePerPlayer" type="number" min={0} step={0.5} defaultValue={tournament.pricePerPlayer ?? ""} placeholder="Ex: 5" style={inputStyle} />
+              </div>
+            )}
           </div>
 
           {tournament.status !== "DRAFT" && (

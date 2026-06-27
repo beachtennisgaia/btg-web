@@ -38,6 +38,8 @@ export default async function EditarTorneioPage({ params }: { params: Promise<{ 
         numGroups: tournament.numGroups,
         pairsAdvancing: tournament.pairsAdvancing,
         finalsTemplate: (tournament.finalsTemplate ?? null) as import("@/components/bracket-builder").FinalsBracketTemplate | null,
+        isPaid: tournament.isPaid,
+        pricePerPlayer: tournament.pricePerPlayer,
       }} />
     </div>
   );

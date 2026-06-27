@@ -129,6 +129,13 @@ export async function updateRegistrationStatus(id: string, status: "CONFIRMED" |
   revalidatePath("/torneios");
 }
 
+export async function toggleRegistrationPaid(id: string, paid: boolean) {
+  "use server";
+  await requireAdmin();
+  const reg = await db.registration.update({ where: { id }, data: { paid }, include: { tournament: true } });
+  revalidatePath(`/admin/torneios/${reg.tournamentId}`);
+}
+
 // ── MEMBERS ───────────────────────────────────────────────────
 
 export async function updateMember(

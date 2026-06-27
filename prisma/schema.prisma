@@ -99,6 +99,8 @@ model Tournament {
   pairsAdvancing       Int?                   // Non-Stop only: pairs per group advancing to finals
   groupPhaseComplete   Boolean                @default(false)
   finalsTemplate       Json?                  // Array of { round, position, label, slot1, slot2 }
+  isPaid           Boolean                    @default(false)
+  pricePerPlayer   Float?
   createdAt        DateTime                   @default(now())
   updatedAt        DateTime                   @updatedAt
 
@@ -131,6 +133,7 @@ model Registration {
   player2      Member?             @relation("Player2", fields: [player2Id], references: [id])
   player2Id    String?
   status       RegistrationStatus  @default(PENDING)
+  paid         Boolean            @default(false)
   groupNumber  Int?
   seedNumber   Int?
   createdAt    DateTime           @default(now())

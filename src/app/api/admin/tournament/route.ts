@@ -30,6 +30,8 @@ export async function POST(req: Request) {
   const pairsAdvancing = formData.get("pairsAdvancing") !== null && formData.get("pairsAdvancing") !== "" ? Number(formData.get("pairsAdvancing")) : null;
   const finalsTemplateRaw = formData.get("finalsTemplate") as string | null;
   const finalsTemplate = finalsTemplateRaw ? JSON.parse(finalsTemplateRaw) : null;
+  const isPaid = formData.get("isPaid") === "true";
+  const pricePerPlayer = formData.get("pricePerPlayer") ? Number(formData.get("pricePerPlayer")) : null;
 
   if (!name || !date || !location) {
     return NextResponse.json({ error: "Campos obrigatórios em falta" }, { status: 400 });
@@ -50,6 +52,8 @@ export async function POST(req: Request) {
       numGroups,
       pairsAdvancing,
       finalsTemplate,
+      isPaid,
+      pricePerPlayer,
       status: "DRAFT",
     },
   });

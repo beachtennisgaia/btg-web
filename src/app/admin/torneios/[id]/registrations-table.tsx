@@ -1,11 +1,12 @@
 "use client";
 
 import { useTransition } from "react";
-import { updateRegistrationStatus } from "@/lib/actions";
+import { updateRegistrationStatus, toggleRegistrationPaid } from "@/lib/actions";
 
 type Reg = {
   id: string;
   status: string;
+  paid: boolean;
   createdAt: Date;
   player1Id: string;
   player2Id: string | null;
@@ -42,7 +43,25 @@ function ActionButton({
   );
 }
 
-export function RegistrationsTable({ registrations, tournamentStatus }: { registrations: Reg[]; tournamentStatus: string }) {
+function PaidToggle({ regId, paid }: { regId: string; paid: boolean }) {
+  const [pending, startTransition] = useTransition();
+  return (
+    <button
+      disabled={pending}
+      onClick={() => startTransition(() => toggleRegistrationPaid(regId, !paid))}
+      style={{
+        background: paid ? "#E8F5E9" : "#FFF3B0",
+        color: paid ? "#1a7a1a" : "#7A5900",
+        border: "none", borderRadius: 6, padding: "5px 12px", fontSize: 12, fontWeight: 700,
+        cursor: pending ? "not-allowed" : "pointer", opacity: pending ? 0.5 : 1,
+      }}
+    >
+      {pending ? "…" : paid ? "✓ Pago" : "Não pago"}
+    </button>
+  );
+}
+
+export function RegistrationsTable({ registrations, tournamentStatus, isPaid }: { registrations: Reg[]; tournamentStatus: string; isPaid?: boolean }) {
   if (registrations.length === 0) {
     return (
       <div style={{ padding: "40px 24px", textAlign: "center" }}>
@@ -66,6 +85,8 @@ export function RegistrationsTable({ registrations, tournamentStatus }: { regist
   const confirmed = visible.filter((r) => r.status === "CONFIRMED").length;
   const pending   = visible.filter((r) => r.status === "PENDING").length;
   const cancelled = visible.filter((r) => r.status === "CANCELLED").length;
+  const paidCount = isPaid ? visible.filter((r) => r.status === "CONFIRMED" && r.paid).length : 0;
+  const unpaidCount = isPaid ? confirmed - paidCount : 0;
 
   const canManage = tournamentStatus === "OPEN" || tournamentStatus === "ONGOING";
 
@@ -82,6 +103,11 @@ export function RegistrationsTable({ registrations, tournamentStatus }: { regist
             <span style={{ color, fontWeight: 700 }}>{value}</span> {label}
           </span>
         ))}
+        {isPaid && confirmed > 0 && (
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#888", marginLeft: 8 }}>
+            <span style={{ color: "#1a7a1a", fontWeight: 700 }}>{paidCount}</span> pag{paidCount !== 1 ? "os" : "o"} · <span style={{ color: "#d32f2f", fontWeight: 700 }}>{unpaidCount}</span> por pagar
+          </span>
+        )}
         {canManage && pending > 0 && (
           <span style={{ fontSize: 12, color: "#F5C000", fontWeight: 600, marginLeft: "auto" }}>
             {pending} inscrição{pending !== 1 ? "ões" : ""} à espera de confirmação
@@ -92,7 +118,7 @@ export function RegistrationsTable({ registrations, tournamentStatus }: { regist
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ background: "#F9F9F9", borderBottom: "1px solid #eee" }}>
-            {["#", "Jogador 1", "Jogador 2", "Estado", "Data", canManage ? "Ações" : ""].map((h) => (
+            {["#", "Jogador 1", "Jogador 2", "Estado", ...(isPaid ? ["Pagamento"] : []), "Data", canManage ? "Ações" : ""].map((h) => (
               <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, color: "#999", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
             ))}
           </tr>
@@ -114,6 +140,15 @@ export function RegistrationsTable({ registrations, tournamentStatus }: { regist
                     {s.label}
                   </span>
                 </td>
+                {isPaid && (
+                  <td style={{ padding: "12px 16px" }}>
+                    {reg.status === "CONFIRMED" ? (
+                      <PaidToggle regId={reg.id} paid={reg.paid} />
+                    ) : (
+                      <span style={{ color: "#ddd", fontSize: 12 }}>—</span>
+                    )}
+                  </td>
+                )}
                 <td style={{ padding: "12px 16px", fontSize: 12, color: "#888" }}>
                   {new Date(reg.createdAt).toLocaleDateString("pt-PT")}
                 </td>

@@ -18,14 +18,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const body = await req.json();
 
-  const numericFields = new Set(["maxPairs", "durationMinutes", "totalDurationMinutes", "numGroups", "pairsAdvancing"]);
+  const numericFields = new Set(["maxPairs", "durationMinutes", "totalDurationMinutes", "numGroups", "pairsAdvancing", "pricePerPlayer"]);
+  const booleanFields = new Set(["isPaid"]);
   const jsonFields = new Set(["finalsTemplate"]);
-  const allowed = ["name", "date", "location", "format", "category", "registrationType", "maxPairs", "description", "durationMinutes", "totalDurationMinutes", "numGroups", "pairsAdvancing", "finalsTemplate"];
+  const allowed = ["name", "date", "location", "format", "category", "registrationType", "maxPairs", "description", "durationMinutes", "totalDurationMinutes", "numGroups", "pairsAdvancing", "finalsTemplate", "isPaid", "pricePerPlayer"];
   const data: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) {
       if (key === "date") data[key] = new Date(body[key] as string);
       else if (numericFields.has(key)) data[key] = body[key] !== "" && body[key] !== null ? Number(body[key]) : null;
+      else if (booleanFields.has(key)) data[key] = body[key] === true || body[key] === "true";
       else if (jsonFields.has(key)) {
         const v = body[key];
         data[key] = v ? (typeof v === "string" ? JSON.parse(v) : v) : null;

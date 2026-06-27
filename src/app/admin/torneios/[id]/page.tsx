@@ -76,6 +76,7 @@ export default async function TorneioDetailPage({ params }: { params: Promise<{ 
           { label: "Formato", value: tournament.format === "ELIMINATION" ? "Eliminatório" : "Non-Stop" },
           { label: "Categoria", value: { MIXED: "Mistas", MALE: "Masculino", FEMALE: "Feminino", OPEN: "Open" }[tournament.category] },
           { label: "Vagas restantes", value: Math.max(0, tournament.maxPairs - activeCount) },
+          ...(tournament.isPaid ? [{ label: "Preço/participante", value: `${(tournament.pricePerPlayer ?? 0).toFixed(2).replace(".", ",")} €` }] : []),
         ].map(({ label, value }) => (
           <div key={label} style={{ background: "#fff", borderRadius: 12, padding: "14px 20px", boxShadow: "0 1px 6px rgba(0,0,0,0.06)", minWidth: 120 }}>
             <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 22, fontWeight: 700, color: "#111", margin: 0 }}>{value}</p>
@@ -96,6 +97,7 @@ export default async function TorneioDetailPage({ params }: { params: Promise<{ 
         <RegistrationsTable
           registrations={tournament.registrations}
           tournamentStatus={tournament.status}
+          isPaid={tournament.isPaid}
         />
       </div>
 
