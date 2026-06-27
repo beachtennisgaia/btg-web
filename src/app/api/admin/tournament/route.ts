@@ -21,6 +21,7 @@ export async function POST(req: Request) {
   const location = formData.get("location") as string;
   const format = formData.get("format") as string;
   const category = formData.get("category") as string;
+  const registrationType = formData.get("registrationType") as string;
   const maxPairs = Number(formData.get("maxPairs"));
   const description = (formData.get("description") as string) || null;
 
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
       location,
       format: format as never,
       category: category as never,
+      registrationType: registrationType as never,
       maxPairs,
       description,
       status: "DRAFT",

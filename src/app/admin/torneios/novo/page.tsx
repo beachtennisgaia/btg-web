@@ -78,6 +78,17 @@ export default function NovoTorneioPage() {
           </div>
 
           <div>
+            <label style={labelStyle}>Tipo de inscrição *</label>
+            <select name="registrationType" required style={selectStyle}>
+              <option value="PAIRS">Em dupla — cada sócio inscreve-se com um parceiro</option>
+              <option value="INDIVIDUAL">Individual — cada sócio inscreve-se sozinho</option>
+            </select>
+            <p style={{ fontSize: 11, color: "#999", margin: "6px 0 0" }}>
+              Non-Stop usa normalmente inscrição individual; eliminatório usa duplas.
+            </p>
+          </div>
+
+          <div>
             <label style={labelStyle}>Descrição</label>
             <textarea name="description" rows={3} placeholder="Informações adicionais sobre o torneio..." style={{ ...inputStyle, resize: "vertical" }} />
           </div>

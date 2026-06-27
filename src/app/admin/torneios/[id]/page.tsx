@@ -97,7 +97,7 @@ export default async function TorneioDetailPage({ params }: { params: Promise<{ 
                   <tr key={reg.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
                     <td style={{ padding: "12px 16px", color: "#bbb", fontWeight: 600, fontSize: 13 }}>{i + 1}</td>
                     <td style={{ padding: "12px 16px", fontSize: 14, color: "#111", fontWeight: 600 }}>{reg.player1.name}</td>
-                    <td style={{ padding: "12px 16px", fontSize: 14, color: "#111" }}>{reg.player2.name}</td>
+                    <td style={{ padding: "12px 16px", fontSize: 14, color: "#111" }}>{reg.player2?.name ?? "—"}</td>
                     <td style={{ padding: "12px 16px" }}>
                       <span style={{ background: s.bg, color: s.color, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 99 }}>{s.label}</span>
                     </td>
