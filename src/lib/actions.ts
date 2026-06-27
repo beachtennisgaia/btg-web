@@ -201,11 +201,16 @@ export async function drawPairs(tournamentId: string) {
 
 // ── MATCHES ───────────────────────────────────────────────────
 
+export async function resetBracket(tournamentId: string) {
+  await requireAdmin();
+  await db.match.deleteMany({ where: { tournamentId } });
+  revalidatePath(`/admin/torneios/${tournamentId}`);
+}
+
 export async function generateBracket(tournamentId: string) {
   await requireAdmin();
 
-  const existing = await db.match.count({ where: { tournamentId } });
-  if (existing > 0) throw new Error("Bracket já gerado");
+  await db.match.deleteMany({ where: { tournamentId } }); // idempotent reset before generating
 
   const registrations = await db.registration.findMany({
     where: { tournamentId, status: "CONFIRMED" },

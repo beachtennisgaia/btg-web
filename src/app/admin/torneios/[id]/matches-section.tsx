@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { generateBracket, generateNextRound, updateMatchResult, resetMatch } from "@/lib/actions";
+import { generateBracket, generateNextRound, updateMatchResult, resetMatch, resetBracket } from "@/lib/actions";
 
 type Registration = {
   id: string;
@@ -144,11 +144,22 @@ export function MatchesSection({
         <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 600, color: "#fff", letterSpacing: "0.04em" }}>
           RESULTADOS {matches.length > 0 && `(${matches.filter((m) => m.completedAt).length}/${matches.length})`}
         </span>
-        {matches.length === 0 && hasConfirmedRegs && (
-          <button onClick={handleGenerate} disabled={pending} style={{ background: "#F5C000", border: "none", borderRadius: 8, padding: "7px 16px", fontWeight: 700, fontSize: 13, color: "#111", cursor: "pointer" }}>
-            {pending ? "A gerar…" : "Gerar Bracket"}
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          {matches.length === 0 && hasConfirmedRegs && (
+            <button onClick={handleGenerate} disabled={pending} style={{ background: "#F5C000", border: "none", borderRadius: 8, padding: "7px 16px", fontWeight: 700, fontSize: 13, color: "#111", cursor: "pointer" }}>
+              {pending ? "A gerar…" : "Gerar Bracket"}
+            </button>
+          )}
+          {matches.length > 0 && (
+            <button
+              onClick={() => { if (confirm("Apagar todos os resultados e refazer o bracket?")) { startTransition(async () => { try { await resetBracket(tournamentId); } catch (e) { setError((e as Error).message); } }); } }}
+              disabled={pending}
+              style={{ background: "#F0F0F0", border: "none", borderRadius: 8, padding: "7px 14px", fontWeight: 600, fontSize: 13, color: "#555", cursor: "pointer" }}
+            >
+              🔄 Refazer
+            </button>
+          )}
+        </div>
         {allDone && !isFinal && (
           <button onClick={handleNextRound} disabled={pending} style={{ background: "#F5C000", border: "none", borderRadius: 8, padding: "7px 16px", fontWeight: 700, fontSize: 13, color: "#111", cursor: "pointer" }}>
             {pending ? "A gerar…" : "Gerar Round Seguinte →"}
