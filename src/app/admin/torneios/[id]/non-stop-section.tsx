@@ -107,27 +107,29 @@ function Standings({ matches, regs }: { matches: Match[]; regs: Registration[] }
     (r) => r.status === "CONFIRMED" && !(r.player2Id === null && player2Ids.has(r.player1Id))
   );
 
-  const totals: Record<string, { games: number; wins: number; played: number }> = {};
+  const totals: Record<string, { gamesFor: number; gamesAgainst: number; wins: number; played: number }> = {};
   for (const r of activeRegs) {
-    totals[r.id] = { games: 0, wins: 0, played: 0 };
+    totals[r.id] = { gamesFor: 0, gamesAgainst: 0, wins: 0, played: 0 };
   }
 
   for (const m of matches.filter((m) => m.completedAt)) {
     if (m.pair1Id && totals[m.pair1Id] !== undefined) {
-      totals[m.pair1Id].games += m.score1 ?? 0;
+      totals[m.pair1Id].gamesFor     += m.score1 ?? 0;
+      totals[m.pair1Id].gamesAgainst += m.score2 ?? 0;
       totals[m.pair1Id].played += 1;
       if ((m.score1 ?? 0) > (m.score2 ?? 0)) totals[m.pair1Id].wins += 1;
     }
     if (m.pair2Id && totals[m.pair2Id] !== undefined) {
-      totals[m.pair2Id].games += m.score2 ?? 0;
+      totals[m.pair2Id].gamesFor     += m.score2 ?? 0;
+      totals[m.pair2Id].gamesAgainst += m.score1 ?? 0;
       totals[m.pair2Id].played += 1;
       if ((m.score2 ?? 0) > (m.score1 ?? 0)) totals[m.pair2Id].wins += 1;
     }
   }
 
   const ranked = Object.entries(totals)
-    .map(([id, s]) => ({ id, label: pairLabel(id, activeRegs), ...s }))
-    .sort((a, b) => b.wins - a.wins || b.games - a.games);
+    .map(([id, s]) => ({ id, label: pairLabel(id, activeRegs), ...s, balance: s.gamesFor - s.gamesAgainst }))
+    .sort((a, b) => b.wins - a.wins || b.balance - a.balance);
 
   if (ranked.length === 0) return null;
 
@@ -145,7 +147,7 @@ function Standings({ matches, regs }: { matches: Match[]; regs: Registration[] }
             <th style={{ padding: "8px 16px", fontSize: 11, color: "#888", fontWeight: 700, textAlign: "left" }}>Dupla</th>
             <th style={{ padding: "8px 16px", fontSize: 11, color: "#888", fontWeight: 700, textAlign: "center" }}>J</th>
             <th style={{ padding: "8px 16px", fontSize: 11, color: "#888", fontWeight: 700, textAlign: "center" }}>V</th>
-            <th style={{ padding: "8px 16px", fontSize: 11, color: "#888", fontWeight: 700, textAlign: "center" }}>Games</th>
+            <th style={{ padding: "8px 16px", fontSize: 11, color: "#888", fontWeight: 700, textAlign: "center" }}>Saldo</th>
           </tr>
         </thead>
         <tbody>
@@ -155,7 +157,9 @@ function Standings({ matches, regs }: { matches: Match[]; regs: Registration[] }
               <td style={{ padding: "10px 16px", fontSize: 14, fontWeight: i < 3 ? 700 : 400, color: "#111" }}>{r.label}</td>
               <td style={{ padding: "10px 16px", fontSize: 13, textAlign: "center", color: "#555" }}>{r.played}</td>
               <td style={{ padding: "10px 16px", fontSize: 13, textAlign: "center", color: "#555" }}>{r.wins}</td>
-              <td style={{ padding: "10px 16px", fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 700, textAlign: "center", color: "#111" }}>{r.games}</td>
+              <td style={{ padding: "10px 16px", fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 700, textAlign: "center", color: r.balance >= 0 ? "#111" : "#d32f2f" }}>
+                {r.balance > 0 ? "+" : ""}{r.balance}
+              </td>
             </tr>
           ))}
         </tbody>

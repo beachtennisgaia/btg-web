@@ -60,12 +60,20 @@ export default async function TorneioDetailPage({ params }: { params: Promise<{ 
       </div>
 
       {/* Stats row */}
+      {(() => {
+        // Exclude solo registrations absorbed into pairs by the draw
+        const player2Ids = new Set(tournament.registrations.filter(r => r.player2Id).map(r => r.player2Id!));
+        const activeRegs = tournament.registrations.filter(
+          r => !(r.status === "CANCELLED" && !r.player2Id && player2Ids.has(r.player1Id))
+        );
+        const activeCount = activeRegs.filter(r => r.status !== "CANCELLED").length;
+        return (
       <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
         {[
-          { label: "Inscrições", value: `${tournament.registrations.length} / ${tournament.maxPairs}` },
+          { label: "Inscrições", value: `${activeCount} / ${tournament.maxPairs}` },
           { label: "Formato", value: tournament.format === "ELIMINATION" ? "Eliminatório" : "Non-Stop" },
           { label: "Categoria", value: { MIXED: "Mistas", MALE: "Masculino", FEMALE: "Feminino", OPEN: "Open" }[tournament.category] },
-          { label: "Vagas restantes", value: Math.max(0, tournament.maxPairs - tournament.registrations.length) },
+          { label: "Vagas restantes", value: Math.max(0, tournament.maxPairs - activeCount) },
         ].map(({ label, value }) => (
           <div key={label} style={{ background: "#fff", borderRadius: 12, padding: "14px 20px", boxShadow: "0 1px 6px rgba(0,0,0,0.06)", minWidth: 120 }}>
             <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 22, fontWeight: 700, color: "#111", margin: 0 }}>{value}</p>
@@ -73,6 +81,8 @@ export default async function TorneioDetailPage({ params }: { params: Promise<{ 
           </div>
         ))}
       </div>
+        );
+      })()}
 
       {/* Registrations */}
       <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
