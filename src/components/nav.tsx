@@ -51,6 +51,19 @@ export function Nav() {
           </SignUpButton>
         </Show>
         <Show when="signed-in">
+          <Link
+            href="/dashboard"
+            style={{
+              color: pathname === "/dashboard" ? "#F5C000" : "#ccc",
+              textDecoration: "none",
+              fontSize: 14,
+              fontWeight: pathname === "/dashboard" ? 600 : 500,
+              borderBottom: pathname === "/dashboard" ? "2px solid #F5C000" : "2px solid transparent",
+              paddingBottom: 2,
+            }}
+          >
+            A minha área
+          </Link>
           <UserButton />
         </Show>
       </div>
