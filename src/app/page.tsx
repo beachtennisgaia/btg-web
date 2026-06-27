@@ -8,16 +8,17 @@ export default function HomePage() {
       {/* NAV */}
       <nav style={{ background: "#111", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", position: "sticky", top: 0, zIndex: 50 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ background: "#F5C000", color: "#111", fontFamily: "var(--font-oswald), sans-serif", fontSize: 22, fontWeight: 700, padding: "4px 10px", borderRadius: 6, letterSpacing: "0.04em" }}>BTG</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/btg-logo-negative.png" alt="BTG Beach Tennis Gaia" style={{ height: 48, width: "auto", objectFit: "contain" }} />
           <span style={{ color: "#888", fontSize: 13, fontWeight: 500 }}>Beach Tennis Gaia</span>
         </div>
         <div style={{ display: "flex", gap: 28, alignItems: "center" }}>
-          <Link href="/torneios" style={{ color: "#ccc", textDecoration: "none", fontSize: 14 }}>Torneios</Link>
-          <Link href="/ranking" style={{ color: "#ccc", textDecoration: "none", fontSize: 14 }}>Ranking</Link>
-          <Link href="/comunidade" style={{ color: "#ccc", textDecoration: "none", fontSize: 14 }}>Comunidade</Link>
+          <Link href="/torneios" style={{ color: "#ccc", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Torneios</Link>
+          <Link href="/ranking" style={{ color: "#ccc", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Ranking</Link>
+          <Link href="/comunidade" style={{ color: "#ccc", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Comunidade</Link>
           <Show when="signed-out">
             <SignInButton mode="modal">
-              <button style={{ color: "#ccc", background: "transparent", border: "none", fontSize: 14, cursor: "pointer" }}>Entrar</button>
+              <button style={{ color: "#ccc", background: "transparent", border: "none", fontSize: 14, cursor: "pointer", fontWeight: 500 }}>Entrar</button>
             </SignInButton>
             <SignUpButton mode="modal">
               <button style={{ background: "#F5C000", color: "#111", fontWeight: 700, fontSize: 14, padding: "8px 18px", borderRadius: 7, border: "none", cursor: "pointer" }}>
@@ -33,13 +34,14 @@ export default function HomePage() {
 
       {/* HERO */}
       <section style={{ position: "relative", minHeight: 520, display: "flex", alignItems: "center", overflow: "hidden" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=1600&q=80"
           alt=""
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
         />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(10,10,10,0.92) 40%, rgba(10,10,10,0.55) 70%, rgba(10,10,10,0.25) 100%)" }} />
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 80, background: "linear-gradient(to bottom, transparent, #111 90%)" }} />
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 80, background: "linear-gradient(to bottom, transparent, #111111 90%)" }} />
         <div style={{ position: "relative", zIndex: 1, padding: "80px 32px", maxWidth: 640 }}>
           <span style={{ background: "#F5C000", color: "#111", fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 99, textTransform: "uppercase", letterSpacing: "0.08em" }}>
             Vila Nova de Gaia
@@ -72,7 +74,7 @@ export default function HomePage() {
       </section>
 
       {/* BANNER PRÓXIMO TORNEIO */}
-      <div style={{ background: "#F5C000", padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+      <section style={{ background: "#F5C000", padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
         <div>
           <span style={{ fontSize: 12, fontWeight: 700, color: "#8A6800", textTransform: "uppercase", letterSpacing: "0.08em" }}>● Próximo Torneio</span>
           <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 22, fontWeight: 700, color: "#111", margin: "4px 0 0" }}>
@@ -82,7 +84,43 @@ export default function HomePage() {
         <Link href="/torneios" style={{ background: "#111", color: "#F5C000", fontWeight: 700, padding: "12px 24px", borderRadius: 8, fontSize: 15, textDecoration: "none", whiteSpace: "nowrap" }}>
           Inscrever-me Agora
         </Link>
-      </div>
+      </section>
+
+      {/* PRÓXIMOS TORNEIOS */}
+      <section style={{ padding: "64px 32px", background: "#F9F9F9" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 32 }}>
+          <h2 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 30, fontWeight: 700, color: "#111", margin: 0, letterSpacing: "0.03em" }}>PRÓXIMOS TORNEIOS</h2>
+          <Link href="/torneios" style={{ color: "#F5C000", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>Ver todos →</Link>
+        </div>
+        <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+          <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", width: 280 }}>
+            <div style={{ background: "#F5C000", padding: 18 }}>
+              <span style={{ background: "#111", color: "#F5C000", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 99 }}>Inscrições Abertas</span>
+              <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 18, fontWeight: 700, color: "#111", margin: "10px 0 0", lineHeight: 1.2 }}>TORNEIO DE VERÃO<br />BTG 2026</p>
+            </div>
+            <div style={{ padding: 16 }}>
+              <p style={{ fontSize: 13, color: "#666", margin: "0 0 6px" }}>📅 12 Jul · 9h00 · Canide</p>
+              <p style={{ fontSize: 13, color: "#666", margin: "0 0 12px" }}>👥 Duplas Mistas · 11/16</p>
+              <Link href="/torneios" style={{ display: "block", width: "100%", textAlign: "center", background: "#F5C000", color: "#111", fontWeight: 700, padding: "10px 0", borderRadius: 7, fontSize: 14, textDecoration: "none" }}>
+                Inscrever-me
+              </Link>
+            </div>
+          </div>
+          <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", width: 280 }}>
+            <div style={{ background: "#111", padding: 18 }}>
+              <span style={{ background: "#F5C000", color: "#111", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 99 }}>Em breve</span>
+              <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 18, fontWeight: 700, color: "#fff", margin: "10px 0 0", lineHeight: 1.2 }}>NON-STOP BTG<br />AGOSTO 2026</p>
+            </div>
+            <div style={{ padding: 16 }}>
+              <p style={{ fontSize: 13, color: "#666", margin: "0 0 6px" }}>📅 23 Ago · Salgueiros</p>
+              <p style={{ fontSize: 13, color: "#666", margin: "0 0 12px" }}>👥 Misto · Formato Non-Stop</p>
+              <Link href="/torneios" style={{ display: "block", width: "100%", textAlign: "center", background: "#111", color: "#fff", fontWeight: 700, padding: "10px 0", borderRadius: 7, fontSize: 14, textDecoration: "none" }}>
+                Saber Mais
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* RANKING PREVIEW */}
       <section style={{ padding: "64px 32px", background: "#fff" }}>
@@ -95,9 +133,16 @@ export default function HomePage() {
             <span style={{ color: "#888", fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Jogador</span>
             <span style={{ color: "#888", fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Pontos</span>
           </div>
-          {[["🥇", "Carlos Ferreira", "1.240"], ["🥈", "Ana Silva", "1.085"], ["🥉", "Miguel Oliveira", "920"]].map(([medal, name, pts]) => (
+          {[
+            { pos: 1, name: "Carlos Ferreira", pts: "1.240", badge: "#F5C000", badgeText: "#111" },
+            { pos: 2, name: "Ana Silva", pts: "1.085", badge: "#E0E0E0", badgeText: "#555" },
+            { pos: 3, name: "Miguel Oliveira", pts: "920", badge: "#FFE0B2", badgeText: "#BF6000" },
+          ].map(({ pos, name, pts, badge, badgeText }) => (
             <div key={name} style={{ padding: "14px 20px", borderBottom: "1px solid #1a1a1a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>{medal} {name}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ background: badge, color: badgeText, fontWeight: 800, fontSize: 12, width: 22, height: 22, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{pos}</span>
+                <span style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>{name}</span>
+              </div>
               <span style={{ color: "#F5C000", fontWeight: 700, fontSize: 16 }}>{pts}</span>
             </div>
           ))}
@@ -124,7 +169,8 @@ export default function HomePage() {
       {/* FOOTER */}
       <footer style={{ background: "#111", padding: 32, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ background: "#F5C000", color: "#111", fontFamily: "var(--font-oswald), sans-serif", fontSize: 18, fontWeight: 700, padding: "3px 8px", borderRadius: 5 }}>BTG</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/btg-logo-negative.png" alt="BTG" style={{ height: 40, width: "auto", objectFit: "contain" }} />
           <span style={{ color: "#555", fontSize: 13 }}>Beach Tennis Gaia · btgaia.pt</span>
         </div>
         <p style={{ color: "#555", fontSize: 12, margin: 0 }}>© 2026 BTG. Vila Nova de Gaia, Portugal.</p>
