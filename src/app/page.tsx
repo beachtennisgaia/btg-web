@@ -6,10 +6,10 @@ export default function HomePage() {
     <div className="min-h-screen flex flex-col" style={{ fontFamily: "var(--font-inter), sans-serif" }}>
 
       {/* NAV */}
-      <nav style={{ background: "#111", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", position: "sticky", top: 0, zIndex: 50 }}>
+      <nav style={{ background: "#111", height: 72, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", position: "sticky", top: 0, zIndex: 50 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/btg-logo-negative.png" alt="BTG Beach Tennis Gaia" style={{ height: 48, width: "auto", objectFit: "contain" }} />
+          <img src="/btg-logo-white.png" alt="BTG Beach Tennis Gaia" style={{ height: 56, width: "auto" }} />
           <span style={{ color: "#888", fontSize: 13, fontWeight: 500 }}>Beach Tennis Gaia</span>
         </div>
         <div style={{ display: "flex", gap: 28, alignItems: "center" }}>
@@ -170,7 +170,7 @@ export default function HomePage() {
       <footer style={{ background: "#111", padding: 32, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/btg-logo-negative.png" alt="BTG" style={{ height: 40, width: "auto", objectFit: "contain" }} />
+          <img src="/btg-logo-white.png" alt="BTG" style={{ height: 40, width: "auto" }} />
           <span style={{ color: "#555", fontSize: 13 }}>Beach Tennis Gaia · btgaia.pt</span>
         </div>
         <p style={{ color: "#555", fontSize: 12, margin: 0 }}>© 2026 BTG. Vila Nova de Gaia, Portugal.</p>
