@@ -67,18 +67,18 @@ export default async function HomePage() {
       {/* HERO */}
       <section style={{ position: "relative", minHeight: 520, display: "flex", alignItems: "center", overflow: "hidden" }}>
         <HeroSlideshow urls={heroImages.map((i) => i.url)} />
-        <div style={{ position: "relative", zIndex: 3, padding: "80px 32px", maxWidth: 640 }}>
+        <div className="btg-hero-content" style={{ position: "relative", zIndex: 3 }}>
           <span style={{ background: "#F5C000", color: "#111", fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 99, textTransform: "uppercase", letterSpacing: "0.08em" }}>
             Vila Nova de Gaia
           </span>
-          <h1 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 58, fontWeight: 700, color: "#fff", margin: "16px 0 8px", lineHeight: 1.05, letterSpacing: "0.02em" }}>
+          <h1 className="btg-hero-title" style={{ fontFamily: "var(--font-oswald), sans-serif", fontWeight: 700, color: "#fff", margin: "16px 0 8px", lineHeight: 1.05, letterSpacing: "0.02em" }}>
             BEACH TENNIS<br /><span style={{ color: "#F5C000" }}>GAIA</span>
           </h1>
           <p style={{ fontSize: 18, color: "#bbb", margin: "0 0 32px", lineHeight: 1.6 }}>
             A comunidade de beach tennis de Gaia. Torneios, ranking, convívio e muito mais. Junta-te a nós.
           </p>
           <HeroAuthButtons />
-          <div style={{ display: "flex", gap: 40, marginTop: 48, paddingTop: 40, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+          <div style={{ display: "flex", gap: 40, marginTop: 48, paddingTop: 40, borderTop: "1px solid rgba(255,255,255,0.1)", flexWrap: "wrap" }}>
             {[
               [String(memberCount), "Sócios Ativos"],
               [String(finishedCount), "Torneios Realizados"],
@@ -95,7 +95,7 @@ export default async function HomePage() {
 
       {/* BANNER PRÓXIMO TORNEIO */}
       {nextTournament ? (
-        <section style={{ background: "#F5C000", padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+        <section className="btg-banner" style={{ background: "#F5C000", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
           <div>
             <span style={{ fontSize: 12, fontWeight: 700, color: nextTournament.status === "ONGOING" ? "#d32f2f" : "#8A6800", textTransform: "uppercase", letterSpacing: "0.08em" }}>{nextTournament.status === "ONGOING" ? "● A Decorrer Agora" : "● Próximo Torneio"}</span>
             <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 22, fontWeight: 700, color: "#111", margin: "4px 0 0" }}>
@@ -109,8 +109,8 @@ export default async function HomePage() {
       ) : null}
 
       {/* TORNEIOS — duas colunas */}
-      <section style={{ padding: "64px 32px", background: "#F9F9F9" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 48, alignItems: "start" }}>
+      <section className="btg-section" style={{ background: "#F9F9F9" }}>
+        <div className="btg-grid-2">
 
           {/* Coluna esquerda: Próximos */}
           <div>
@@ -186,8 +186,8 @@ export default async function HomePage() {
       </section>
 
       {/* RANKING + COMUNIDADE — duas colunas */}
-      <section style={{ padding: "64px 32px", background: "#fff" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 48, alignItems: "start" }}>
+      <section className="btg-section" style={{ background: "#fff" }}>
+        <div className="btg-grid-2">
 
           {/* Coluna esquerda: Ranking */}
           <div>
@@ -268,7 +268,7 @@ export default async function HomePage() {
       </section>
 
       {/* CTA */}
-      <section style={{ background: "#F5C000", padding: "64px 32px", textAlign: "center" }}>
+      <section className="btg-section" style={{ background: "#F5C000", textAlign: "center" }}>
         <h2 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 36, fontWeight: 700, color: "#111", margin: "0 0 12px", letterSpacing: "0.03em" }}>JUNTA-TE AO BTG</h2>
         <p style={{ fontSize: 17, color: "#5A4000", margin: "0 0 32px", maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
           Acede a torneios exclusivos, ranking BTG, galeria de fotos e comunidade de beach tennis em Gaia.
@@ -278,7 +278,7 @@ export default async function HomePage() {
       </section>
 
       {/* FOOTER */}
-      <footer style={{ background: "#111", padding: 32, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
+      <footer className="btg-section" style={{ background: "#111", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/btg-logo-white.png" alt="BTG" style={{ height: 40, width: "auto" }} />
