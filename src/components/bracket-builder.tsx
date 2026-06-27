@@ -5,304 +5,385 @@ import type { BracketEntry, FinalsBracketTemplate } from "@/lib/actions";
 
 export { type BracketEntry, type FinalsBracketTemplate };
 
-// ── Slot grammar ──────────────────────────────────────────────────────────────
-// G{n}R{r}   → {r}º do Grupo {A/B/C}   (from group standings)
-// W{r}.{p}   → Vencedor da Partida {p} na Ronda {r}
-// L{r}.{p}   → Perdedor da Partida {p} na Ronda {r}
+// ── Slot grammar ─────────────────────────────────────────────────────
+// G{n}R{r}  →  {r}º do Grupo {A/B/C…}
+// W{r}.{p}  →  Vencedor da Partida {p} na Ronda {r}
+// L{r}.{p}  →  Perdedor da Partida {p} na Ronda {r}
 
-export function slotLabel(slot: string, matchLabels?: Map<string, string>): string {
+export function slotLabel(slot: string): string {
   const g = slot.match(/^G(\d+)R(\d+)$/);
   if (g) return `${g[2]}º Grupo ${String.fromCharCode(64 + parseInt(g[1]))}`;
   const w = slot.match(/^W(\d+)\.(\d+)$/);
-  if (w) {
-    const key = `W${w[1]}.${w[2]}`;
-    return matchLabels?.get(key) ? `Venc. ${matchLabels.get(key)}` : `Venc. R${w[1]}P${w[2]}`;
-  }
+  if (w) return `Venc. M${w[2]}`;
   const l = slot.match(/^L(\d+)\.(\d+)$/);
-  if (l) {
-    const key = `W${l[1]}.${l[2]}`;
-    return matchLabels?.get(key) ? `Perd. ${matchLabels.get(key)}` : `Perd. R${l[1]}P${l[2]}`;
-  }
+  if (l) return `Perd. M${l[2]}`;
   return slot;
 }
 
-// ── Round name suggestions ────────────────────────────────────────────────────
-const ROUND_NAMES: Record<number, string> = {
-  1: "Final",
-  2: "Meias-Finais",
-  3: "Quartas-de-Final",
-  4: "Oitavos-de-Final",
-  5: "Avos-de-Final",
-};
+// ── Structure helpers ─────────────────────────────────────────────────
 
-function suggestRoundName(totalRounds: number, roundIndex: number): string {
-  // roundIndex: 0 = earliest round
-  const fromFinal = totalRounds - 1 - roundIndex;
-  return ROUND_NAMES[fromFinal] ?? `Ronda ${roundIndex + 1}`;
+const ROUND_NAMES: Record<number, string> = { 0: "Final", 1: "Meias-Finais", 2: "Quartas-de-Final", 3: "Oitavos-de-Final" };
+const MATCH_NAMES: Record<number, (p: number) => string> = { 0: () => "Final", 1: p => `Semifinal ${p}`, 2: p => `Quarta ${p}`, 3: p => `Oitavo ${p}` };
+
+function matchesPerRound(totalPairs: number): number[] {
+  if (totalPairs < 2) return [];
+  const rounds: number[] = [];
+  let n = totalPairs;
+  while (n > 1) { const m = Math.floor(n / 2); rounds.push(m); n = m + (n % 2); }
+  return rounds;
 }
 
-// ── Default bracket ───────────────────────────────────────────────────────────
-export function defaultBracket(numGroups: number, pairsAdvancing: number): FinalsBracketTemplate {
-  const totalPairs = numGroups * pairsAdvancing;
-  const entries: BracketEntry[] = [];
-
-  if (totalPairs < 2) return entries;
-
-  // Round 1: cross-group matchups
-  let pos = 1;
-  const r1Matches: Array<{ pos: number; label: string; slot1: string; slot2: string }> = [];
-
-  if (numGroups === 2 && pairsAdvancing === 1) {
-    r1Matches.push({ pos: pos++, label: "Final", slot1: "G1R1", slot2: "G2R1" });
-  } else if (numGroups === 2 && pairsAdvancing === 2) {
-    r1Matches.push({ pos: 1, label: "Semifinal 1", slot1: "G1R1", slot2: "G2R2" });
-    r1Matches.push({ pos: 2, label: "Semifinal 2", slot1: "G2R1", slot2: "G1R2" });
-    pos = 3;
-  } else {
-    for (let g = 1; g <= numGroups; g++) {
-      for (let r = 1; r <= pairsAdvancing; r++) {
-        const oppG = (g % numGroups) + 1;
-        const oppR = pairsAdvancing + 1 - r;
-        const slot1 = `G${g}R${r}`;
-        const slot2 = `G${oppG}R${oppR}`;
-        if (slot1 < slot2) r1Matches.push({ pos: pos++, label: `Partida ${r1Matches.length + 1}`, slot1, slot2 });
-      }
-    }
-  }
-
-  const roundLabel1 = suggestRoundName(r1Matches.length <= 1 ? 1 : 2, 0);
-  r1Matches.forEach(m => entries.push({ round: 1, roundLabel: roundLabel1, position: m.pos, label: m.label, slot1: m.slot1, slot2: m.slot2 }));
-
-  // Round 2 (Final) — only if round 1 has > 1 match
-  if (r1Matches.length > 1) {
-    entries.push({ round: 2, roundLabel: "Final", position: 1, label: "Final", slot1: "W1.1", slot2: "W1.2" });
-    if (r1Matches.length === 2) {
-      // 3rd place optional (not added by default — user can add)
-    }
-  }
-
-  return entries;
+function defaultRoundName(numRounds: number, ri: number): string {
+  return ROUND_NAMES[numRounds - 1 - ri] ?? `Ronda ${ri + 1}`;
+}
+function defaultMatchName(numRounds: number, ri: number, pos: number): string {
+  return (MATCH_NAMES[numRounds - 1 - ri] ?? ((p: number) => `Partida ${p}`))(pos);
 }
 
-// ── Internal state types ──────────────────────────────────────────────────────
-type MatchState = { position: number; label: string; slot1: string; slot2: string };
-type RoundState = { roundNum: number; roundLabel: string; matches: MatchState[] };
-
-function entriesToRounds(entries: BracketEntry[]): RoundState[] {
-  const map = new Map<number, RoundState>();
-  for (const e of entries) {
-    if (!map.has(e.round)) map.set(e.round, { roundNum: e.round, roundLabel: e.roundLabel ?? `Ronda ${e.round}`, matches: [] });
-    map.get(e.round)!.matches.push({ position: e.position, label: e.label, slot1: e.slot1, slot2: e.slot2 });
-  }
-  return [...map.values()].sort((a, b) => a.roundNum - b.roundNum);
-}
-
-function roundsToEntries(rounds: RoundState[]): BracketEntry[] {
-  const out: BracketEntry[] = [];
-  for (const r of rounds) for (const m of r.matches) {
-    out.push({ round: r.roundNum, roundLabel: r.roundLabel, position: m.position, label: m.label, slot1: m.slot1, slot2: m.slot2 });
-  }
+function defaultSeeding(numGroups: number, pairsAdvancing: number): string[] {
+  if (numGroups === 2 && pairsAdvancing === 1) return ["G1R1", "G2R1"];
+  if (numGroups === 2 && pairsAdvancing === 2) return ["G1R1", "G2R2", "G2R1", "G1R2"];
+  const out: string[] = [];
+  for (let r = 1; r <= pairsAdvancing; r++) for (let g = 1; g <= numGroups; g++) out.push(`G${g}R${r}`);
   return out;
 }
 
-// ── Slot options for a given round ───────────────────────────────────────────
-function slotOptions(
-  round: number,
-  numGroups: number,
-  pairsAdvancing: number,
-  rounds: RoundState[],
-): Array<{ key: string; label: string; group?: string }> {
-  const opts: Array<{ key: string; label: string; group?: string }> = [];
-
-  if (round === 1) {
-    // Group standings
-    for (let g = 1; g <= numGroups; g++)
-      for (let r = 1; r <= pairsAdvancing; r++)
-        opts.push({ key: `G${g}R${r}`, label: slotLabel(`G${g}R${r}`), group: `Grupo ${String.fromCharCode(64 + g)}` });
-  }
-
-  // Winners/Losers from previous rounds
-  for (const prevRound of rounds.filter(r => r.roundNum < round)) {
-    const matchLabels = new Map(prevRound.matches.map(m => [`W${prevRound.roundNum}.${m.position}`, m.label]));
-    for (const m of prevRound.matches) {
-      opts.push({ key: `W${prevRound.roundNum}.${m.position}`, label: `Venc. ${m.label} (${prevRound.roundLabel})`, group: `Venc. ${prevRound.roundLabel}` });
-      opts.push({ key: `L${prevRound.roundNum}.${m.position}`, label: `Perd. ${m.label} (${prevRound.roundLabel})`, group: `Perd. ${prevRound.roundLabel}` });
+export function defaultBracket(numGroups: number, pairsAdvancing: number): FinalsBracketTemplate {
+  const rounds = matchesPerRound(numGroups * pairsAdvancing);
+  const nR = rounds.length;
+  if (nR === 0) return [];
+  const seeds = defaultSeeding(numGroups, pairsAdvancing);
+  const entries: BracketEntry[] = [];
+  for (let ri = 0; ri < nR; ri++) {
+    const r = ri + 1;
+    for (let pos = 1; pos <= rounds[ri]; pos++) {
+      const slot1 = ri === 0 ? (seeds[(pos - 1) * 2] ?? "") : `W${r - 1}.${2 * pos - 1}`;
+      const slot2 = ri === 0 ? (seeds[(pos - 1) * 2 + 1] ?? "") : `W${r - 1}.${2 * pos}`;
+      entries.push({ round: r, roundLabel: defaultRoundName(nR, ri), position: pos, label: defaultMatchName(nR, ri, pos), slot1, slot2 });
     }
-    void matchLabels;
   }
-
-  return opts;
+  return entries;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────────
+
 type Props = {
   numGroups: number;
   pairsAdvancing: number;
   initial?: FinalsBracketTemplate | null;
-  onChange?: (template: FinalsBracketTemplate) => void;
-  onSave?: (template: FinalsBracketTemplate) => Promise<void>;
+  onChange?: (t: FinalsBracketTemplate) => void;
+  onSave?: (t: FinalsBracketTemplate) => Promise<void>;
   onCancel?: () => void;
 };
 
-const inputSt: React.CSSProperties = {
-  padding: "6px 10px", border: "1.5px solid #e0e0e0", borderRadius: 7,
-  fontSize: 13, background: "#fff", cursor: "pointer", color: "#111",
-  fontFamily: "var(--font-inter), sans-serif", boxSizing: "border-box",
-};
+const BASE_H = 110; // height per R1 match slot (px)
 
 export function BracketBuilder({ numGroups, pairsAdvancing, initial, onChange, onSave, onCancel }: Props) {
-  const [rounds, setRounds] = useState<RoundState[]>(() => {
+  const total = numGroups * pairsAdvancing;
+  const mpr = matchesPerRound(total); // matches per round array
+  const nR = mpr.length;
+
+  // All G-slot sources
+  const allSources = (() => {
+    const s: { key: string; label: string }[] = [];
+    for (let g = 1; g <= numGroups; g++) for (let r = 1; r <= pairsAdvancing; r++)
+      s.push({ key: `G${g}R${r}`, label: `${r}º Grupo ${String.fromCharCode(64 + g)}` });
+    return s;
+  })();
+
+  // Parse initial into working state
+  function init() {
+    const a: Record<string, string> = {};  // "r-pos-side" → G slot key
+    const ml: Record<string, string> = {}; // "r-pos" → label
+    const rl: Record<number, string> = {}; // round → label
     const src = initial && initial.length > 0 ? initial : defaultBracket(numGroups, pairsAdvancing);
-    return entriesToRounds(src);
-  });
+    for (const e of src) {
+      if (e.roundLabel) rl[e.round] = e.roundLabel;
+      ml[`${e.round}-${e.position}`] = e.label;
+      if (e.round === 1) {
+        if (e.slot1 && !e.slot1.startsWith("W") && !e.slot1.startsWith("L")) a[`1-${e.position}-1`] = e.slot1;
+        if (e.slot2 && !e.slot2.startsWith("W") && !e.slot2.startsWith("L")) a[`1-${e.position}-2`] = e.slot2;
+      }
+    }
+    for (let ri = 0; ri < nR; ri++) {
+      const r = ri + 1;
+      if (!rl[r]) rl[r] = defaultRoundName(nR, ri);
+      for (let p = 1; p <= mpr[ri]; p++) if (!ml[`${r}-${p}`]) ml[`${r}-${p}`] = defaultMatchName(nR, ri, p);
+    }
+    return { a, ml, rl };
+  }
+
+  const i0 = init();
+  const [assigns, setAssigns] = useState<Record<string, string>>(i0.a);
+  const [mLabels, setMLabels] = useState<Record<string, string>>(i0.ml);
+  const [rLabels, setRLabels] = useState<Record<number, string>>(i0.rl);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  function update(next: RoundState[]) {
-    setRounds(next);
-    onChange?.(roundsToEntries(next));
+  const assignedSet = new Set(Object.values(assigns));
+  const unassigned = allSources.filter(s => !assignedSet.has(s.key));
+
+  function buildTemplate(a = assigns): FinalsBracketTemplate {
+    const entries: BracketEntry[] = [];
+    for (let ri = 0; ri < nR; ri++) {
+      const r = ri + 1;
+      for (let p = 1; p <= mpr[ri]; p++) {
+        const slot1 = ri === 0 ? (a[`1-${p}-1`] ?? "") : `W${r - 1}.${2 * p - 1}`;
+        const slot2 = ri === 0 ? (a[`1-${p}-2`] ?? "") : `W${r - 1}.${2 * p}`;
+        entries.push({ round: r, roundLabel: rLabels[r], position: p, label: mLabels[`${r}-${p}`] ?? `Partida ${p}`, slot1, slot2 });
+      }
+    }
+    return entries;
   }
 
-  function updateRoundLabel(roundIdx: number, label: string) {
-    const next = rounds.map((r, i) => i === roundIdx ? { ...r, roundLabel: label } : r);
-    update(next);
+  function place(slotKey: string, chipKey: string) {
+    const next = { ...assigns };
+    const prev = Object.entries(next).find(([, v]) => v === chipKey)?.[0];
+    if (prev) delete next[prev];
+    next[slotKey] = chipKey;
+    setAssigns(next);
+    onChange?.(buildTemplate(next));
   }
 
-  function addRound() {
-    const nextRoundNum = Math.max(...rounds.map(r => r.roundNum), 0) + 1;
-    const newRound: RoundState = {
-      roundNum: nextRoundNum,
-      roundLabel: nextRoundNum === 2 ? "Final" : `Ronda ${nextRoundNum}`,
-      matches: [{ position: 1, label: "Partida 1", slot1: rounds.length > 0 ? `W${nextRoundNum - 1}.1` : "", slot2: rounds.length > 0 ? `W${nextRoundNum - 1}.2` : "" }],
-    };
-    update([...rounds, newRound]);
+  function remove(slotKey: string) {
+    const next = { ...assigns };
+    delete next[slotKey];
+    setAssigns(next);
+    onChange?.(buildTemplate(next));
   }
 
-  function removeRound(roundIdx: number) {
-    update(rounds.filter((_, i) => i !== roundIdx));
+  function handleZoneClick(slotKey: string) {
+    if (selected) { place(slotKey, selected); setSelected(null); }
+    else if (assigns[slotKey]) { setSelected(assigns[slotKey]); }
   }
 
-  function addMatch(roundIdx: number) {
-    const r = rounds[roundIdx];
-    const nextPos = Math.max(...r.matches.map(m => m.position), 0) + 1;
-    const newMatch: MatchState = {
-      position: nextPos,
-      label: `Partida ${nextPos}`,
-      slot1: r.roundNum === 1 ? (numGroups > 0 ? `G1R${nextPos}` : "") : `W${r.roundNum - 1}.${nextPos}`,
-      slot2: r.roundNum === 1 ? (numGroups > 1 ? `G2R${nextPos}` : "") : `W${r.roundNum - 1}.${Math.min(nextPos + 1, r.matches.length + 1)}`,
-    };
-    const next = rounds.map((round, i) => i === roundIdx ? { ...round, matches: [...round.matches, newMatch] } : round);
-    update(next);
-  }
-
-  function removeMatch(roundIdx: number, matchIdx: number) {
-    const next = rounds.map((r, i) => i !== roundIdx ? r : {
-      ...r,
-      matches: r.matches.filter((_, j) => j !== matchIdx).map((m, j) => ({ ...m, position: j + 1 })),
-    });
-    update(next);
-  }
-
-  function updateMatch(roundIdx: number, matchIdx: number, field: keyof MatchState, value: string | number) {
-    const next = rounds.map((r, i) => i !== roundIdx ? r : {
-      ...r,
-      matches: r.matches.map((m, j) => j !== matchIdx ? m : { ...m, [field]: value }),
-    });
-    update(next);
+  function handleChipClick(key: string) {
+    setSelected(sel => sel === key ? null : key);
   }
 
   async function handleSave() {
     if (!onSave) return;
-    const entries = roundsToEntries(rounds);
-    for (const e of entries) {
-      if (!e.slot1 || !e.slot2) { setError("Todos os cruzamentos precisam de dois participantes."); return; }
-    }
-    setError("");
-    setSaving(true);
-    try { await onSave(entries); } catch (e) { setError((e as Error).message); }
-    finally { setSaving(false); }
+    const t = buildTemplate();
+    const bad = t.filter(e => e.round === 1 && (!e.slot1 || !e.slot2));
+    if (bad.length) { setError("Preenche todos os slots da 1ª ronda."); return; }
+    setError(""); setSaving(true);
+    try { await onSave(t); } catch (e) { setError((e as Error).message); } finally { setSaving(false); }
   }
 
+  const totalH = mpr[0] * BASE_H;
+
   return (
-    <div>
-      {rounds.map((round, roundIdx) => {
-        const opts = slotOptions(round.roundNum, numGroups, pairsAdvancing, rounds);
-        const groupedOpts = opts.reduce((acc, o) => {
-          const g = o.group ?? "";
-          (acc[g] ??= []).push(o);
-          return acc;
-        }, {} as Record<string, typeof opts>);
+    <div style={{ fontFamily: "var(--font-inter), sans-serif" }}>
+      {/* Sources pool */}
+      <div style={{ marginBottom: 16 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 8px" }}>
+          Classificações disponíveis {selected && <span style={{ color: "#F5A623" }}>— clica num slot do bracket para colocar</span>}
+        </p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+          {allSources.map(s => {
+            const isAssigned = assignedSet.has(s.key);
+            const isSel = selected === s.key;
+            return (
+              <div
+                key={s.key}
+                draggable={!isAssigned}
+                onDragStart={() => { setDragging(s.key); setSelected(null); }}
+                onDragEnd={() => setDragging(null)}
+                onClick={() => !isAssigned && handleChipClick(s.key)}
+                style={{
+                  padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                  background: isAssigned ? "#F0F0F0" : isSel ? "#F5C000" : "#FFFCE8",
+                  color: isAssigned ? "#bbb" : "#111",
+                  border: `2px solid ${isAssigned ? "#E8E8E8" : isSel ? "#D4A800" : "#F5C000"}`,
+                  cursor: isAssigned ? "default" : "grab",
+                  userSelect: "none",
+                  transition: "all 0.12s",
+                  opacity: isAssigned ? 0.55 : 1,
+                  boxShadow: isSel ? "0 2px 8px rgba(245,192,0,0.4)" : "none",
+                }}
+              >
+                {s.label}
+              </div>
+            );
+          })}
+          {unassigned.length === 0 && (
+            <span style={{ fontSize: 12, color: "#4CAF50", fontWeight: 700, alignSelf: "center" }}>
+              ✓ Todos os slots preenchidos
+            </span>
+          )}
+        </div>
+      </div>
 
-        return (
-          <div key={round.roundNum} style={{ marginBottom: 20, background: "#F9F9F9", borderRadius: 12, border: "1px solid #eee", overflow: "hidden" }}>
-            {/* Round header */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#111", borderBottom: "1px solid #222" }}>
-              <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 12, color: "#F5C000", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", minWidth: 20 }}>
-                R{round.roundNum}
-              </span>
-              <input
-                value={round.roundLabel}
-                onChange={e => updateRoundLabel(roundIdx, e.target.value)}
-                placeholder="Nome da ronda (ex: Meias-Finais)"
-                style={{ ...inputSt, flex: 1, background: "#222", border: "1px solid #333", color: "#fff", padding: "5px 10px" }}
-              />
-              <button onClick={() => removeRound(roundIdx)} style={{ background: "#333", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 12, color: "#aaa", cursor: "pointer" }}>
-                × Remover ronda
-              </button>
-            </div>
+      {/* Bracket columns */}
+      <div style={{ display: "flex", gap: 0, alignItems: "stretch", overflowX: "auto", paddingBottom: 4 }}>
+        {mpr.map((numMatches, ri) => {
+          const r = ri + 1;
+          const isRound1 = ri === 0;
+          // Height of each match card in this round = totalH / numMatches
+          const cardH = totalH / numMatches;
 
-            {/* Matches */}
-            <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
-              {round.matches.map((match, matchIdx) => (
-                <div key={matchIdx} style={{ display: "grid", gridTemplateColumns: "140px 1fr auto 1fr auto", gap: 8, alignItems: "center" }}>
-                  <input
-                    value={match.label}
-                    onChange={e => updateMatch(roundIdx, matchIdx, "label", e.target.value)}
-                    placeholder="Ex: Semifinal 1"
-                    style={inputSt}
-                  />
-                  <select value={match.slot1} onChange={e => updateMatch(roundIdx, matchIdx, "slot1", e.target.value)} style={inputSt}>
-                    {Object.entries(groupedOpts).map(([group, options]) => (
-                      <optgroup key={group} label={group}>
-                        {options.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-                      </optgroup>
-                    ))}
-                  </select>
-                  <span style={{ color: "#aaa", fontSize: 12, fontWeight: 700, textAlign: "center" }}>vs</span>
-                  <select value={match.slot2} onChange={e => updateMatch(roundIdx, matchIdx, "slot2", e.target.value)} style={inputSt}>
-                    {Object.entries(groupedOpts).map(([group, options]) => (
-                      <optgroup key={group} label={group}>
-                        {options.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-                      </optgroup>
-                    ))}
-                  </select>
-                  <button onClick={() => removeMatch(roundIdx, matchIdx)} style={{ background: "#FFEAEA", border: "none", borderRadius: 7, padding: "6px 10px", fontSize: 13, color: "#d32f2f", cursor: "pointer", fontWeight: 700, whiteSpace: "nowrap" }}>×</button>
+          return (
+            <div key={r} style={{ display: "flex", alignItems: "stretch", flexShrink: 0 }}>
+              {/* Connector between rounds */}
+              {ri > 0 && (
+                <div style={{ width: 32, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", position: "relative" }}>
+                  {/* For each match in this round, draw a horizontal line */}
+                  {Array.from({ length: numMatches }, (_, mi) => {
+                    const matchH = totalH / numMatches;
+                    const topOffset = mi * matchH + matchH / 2;
+                    return (
+                      <div key={mi} style={{ position: "absolute", top: topOffset - 1, left: 0, right: 0, height: 2, background: "#E8E8E8" }} />
+                    );
+                  })}
                 </div>
-              ))}
-              <button onClick={() => addMatch(roundIdx)} style={{ background: "#fff", border: "1.5px dashed #ddd", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600, color: "#888", cursor: "pointer", alignSelf: "flex-start", marginTop: 4 }}>
-                + Adicionar partida a {round.roundLabel}
-              </button>
-            </div>
-          </div>
-        );
-      })}
+              )}
 
-      {/* Add round */}
-      <button onClick={addRound} style={{ width: "100%", background: "#fff", border: "2px dashed #F5C000", borderRadius: 10, padding: "10px", fontSize: 13, fontWeight: 700, color: "#8A6800", cursor: "pointer", marginBottom: 14 }}>
-        + Adicionar ronda seguinte
-      </button>
+              {/* Round column */}
+              <div style={{ width: 200, flexShrink: 0 }}>
+                {/* Round header */}
+                {editingKey === `r-${r}` ? (
+                  <input
+                    autoFocus
+                    value={rLabels[r] ?? ""}
+                    onChange={e => setRLabels(prev => ({ ...prev, [r]: e.target.value }))}
+                    onBlur={() => setEditingKey(null)}
+                    onKeyDown={e => e.key === "Enter" && setEditingKey(null)}
+                    style={{ width: "100%", padding: "6px 10px", fontSize: 11, fontWeight: 700, fontFamily: "var(--font-inter), sans-serif", border: "1.5px solid #F5C000", borderRadius: 0, background: "#111", color: "#F5C000", textTransform: "uppercase", letterSpacing: "0.08em", outline: "none", boxSizing: "border-box" }}
+                  />
+                ) : (
+                  <div
+                    onClick={() => setEditingKey(`r-${r}`)}
+                    style={{ padding: "7px 12px", background: "#111", cursor: "text", display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                    title="Clica para editar o nome da ronda"
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                      <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 10, fontWeight: 700, color: "#F5C000", background: "rgba(245,192,0,0.15)", borderRadius: 4, padding: "1px 6px", letterSpacing: "0.1em" }}>R{r}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase", letterSpacing: "0.07em" }}>{rLabels[r]}</span>
+                    </div>
+                    <span style={{ fontSize: 9, color: "#555" }}>✎</span>
+                  </div>
+                )}
+
+                {/* Match cards */}
+                <div style={{ height: totalH, display: "flex", flexDirection: "column" }}>
+                  {Array.from({ length: numMatches }, (_, mi) => {
+                    const pos = mi + 1;
+                    const mKey = `${r}-${pos}`;
+                    const isEditing = editingKey === `m-${mKey}`;
+
+                    const slot1Key = `${r}-${pos}-1`;
+                    const slot2Key = `${r}-${pos}-2`;
+                    const chip1 = assigns[slot1Key] ? allSources.find(s => s.key === assigns[slot1Key]) : null;
+                    const chip2 = assigns[slot2Key] ? allSources.find(s => s.key === assigns[slot2Key]) : null;
+
+                    // For round 2+, derive auto source labels
+                    const auto1 = !isRound1 ? slotLabel(`W${r - 1}.${2 * pos - 1}`) : null;
+                    const auto2 = !isRound1 ? slotLabel(`W${r - 1}.${2 * pos}`) : null;
+
+                    return (
+                      <div key={pos} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "6px 8px", borderTop: mi > 0 ? "1px solid #f0f0f0" : "none" }}>
+                        <div style={{ width: "100%", background: "#fff", borderRadius: 10, border: "1.5px solid #E8E8E8", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                          {/* Match name */}
+                          {isEditing ? (
+                            <input
+                              autoFocus
+                              value={mLabels[mKey] ?? ""}
+                              onChange={e => setMLabels(prev => ({ ...prev, [mKey]: e.target.value }))}
+                              onBlur={() => setEditingKey(null)}
+                              onKeyDown={e => e.key === "Enter" && setEditingKey(null)}
+                              style={{ width: "100%", padding: "4px 10px", fontSize: 11, fontFamily: "var(--font-inter), sans-serif", fontWeight: 700, border: "none", borderBottom: "1.5px solid #F5C000", outline: "none", boxSizing: "border-box", color: "#111" }}
+                            />
+                          ) : (
+                            <div
+                              onClick={() => setEditingKey(`m-${mKey}`)}
+                              style={{ padding: "5px 10px", fontSize: 11, fontWeight: 700, color: "#555", background: "#FAFAFA", borderBottom: "1px solid #F0F0F0", cursor: "text", display: "flex", justifyContent: "space-between" }}
+                              title="Clica para editar o nome"
+                            >
+                              <span>{mLabels[mKey]}</span>
+                              <span style={{ fontSize: 9, color: "#ccc" }}>✎</span>
+                            </div>
+                          )}
+
+                          {/* Slots */}
+                          <div style={{ padding: "6px 8px", display: "flex", flexDirection: "column", gap: 5 }}>
+                            {[
+                              { zKey: slot1Key, chip: chip1, auto: auto1, side: 1 },
+                              { zKey: slot2Key, chip: chip2, auto: auto2, side: 2 },
+                            ].map(({ zKey, chip, auto, side }) => {
+                              const isDragOver = dragOver === zKey;
+                              const isSelTarget = !!selected && !chip && isRound1;
+                              return (
+                                <div
+                                  key={side}
+                                  draggable={!!chip && isRound1}
+                                  onDragStart={() => chip && (setDragging(chip.key), setSelected(null))}
+                                  onDragEnd={() => setDragging(null)}
+                                  onDragOver={e => { if (isRound1) { e.preventDefault(); setDragOver(zKey); } }}
+                                  onDragLeave={() => setDragOver(null)}
+                                  onDrop={e => { e.preventDefault(); if (isRound1 && dragging) { place(zKey, dragging); setDragging(null); setDragOver(null); } }}
+                                  onClick={() => isRound1 && handleZoneClick(zKey)}
+                                  style={{
+                                    padding: "5px 9px",
+                                    borderRadius: 7,
+                                    border: `1.5px ${chip || auto ? "solid" : "dashed"} ${isDragOver || isSelTarget ? "#F5C000" : chip ? "#E0E0E0" : "#DDD"}`,
+                                    background: isDragOver || isSelTarget ? "#FFFCE8" : chip ? "#F5F5F5" : "#FAFAFA",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    minHeight: 30,
+                                    cursor: isRound1 ? (chip ? "grab" : selected ? "copy" : "default") : "default",
+                                    transition: "all 0.1s",
+                                  }}
+                                >
+                                  {chip ? (
+                                    <>
+                                      <span style={{ fontSize: 11, fontWeight: 700, color: "#111" }}>{chip.label}</span>
+                                      {isRound1 && (
+                                        <button
+                                          onClick={e => { e.stopPropagation(); remove(zKey); }}
+                                          style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 13, padding: "0 2px", lineHeight: 1 }}
+                                        >
+                                          ×
+                                        </button>
+                                      )}
+                                    </>
+                                  ) : auto ? (
+                                    <span style={{ fontSize: 11, color: "#aaa", fontStyle: "italic" }}>{auto}</span>
+                                  ) : (
+                                    <span style={{ fontSize: 10, color: isDragOver || isSelTarget ? "#8A6800" : "#ccc", fontStyle: "italic" }}>
+                                      {isDragOver ? "Soltar →" : isSelTarget ? "Clica para colocar" : "Arrastar aqui…"}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {/* Actions */}
-      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-        <div style={{ flex: 1 }} />
-        {error && <span style={{ fontSize: 12, color: "#d32f2f" }}>{error}</span>}
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 16 }}>
+        {error && <span style={{ fontSize: 12, color: "#d32f2f", flex: 1 }}>{error}</span>}
+        {!error && <div style={{ flex: 1 }} />}
         {onCancel && (
           <button type="button" onClick={onCancel} style={{ background: "#F0F0F0", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#555", cursor: "pointer" }}>
             Cancelar
           </button>
         )}
         {onSave && (
-          <button type="button" onClick={handleSave} disabled={saving || rounds.length === 0} style={{ background: "#111", border: "none", borderRadius: 8, padding: "9px 20px", fontSize: 13, fontWeight: 700, color: "#F5C000", cursor: "pointer" }}>
+          <button type="button" onClick={handleSave} disabled={saving} style={{ background: "#111", border: "none", borderRadius: 8, padding: "9px 20px", fontSize: 13, fontWeight: 700, color: "#F5C000", cursor: saving ? "not-allowed" : "pointer" }}>
             {saving ? "A guardar…" : "Confirmar estrutura →"}
           </button>
         )}
