@@ -49,6 +49,9 @@ export default async function TorneioDetailPage({ params }: { params: Promise<{ 
             <Link href={`/admin/torneios/${id}/editar`} style={{ background: "#F0F0F0", color: "#333", fontWeight: 600, padding: "9px 18px", borderRadius: 8, fontSize: 13, textDecoration: "none" }}>
               Editar
             </Link>
+            <Link href={`/admin/torneios/${id}/imprimir`} target="_blank" style={{ background: "#F0F0F0", color: "#333", fontWeight: 600, padding: "9px 18px", borderRadius: 8, fontSize: 13, textDecoration: "none" }}>
+              🖨 Imprimir
+            </Link>
             <DuplicateTournamentButton id={id} />
             {next && (
               <form action={updateTournamentStatus.bind(null, id, next)}>
