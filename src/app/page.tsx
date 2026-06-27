@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { SignInButton, SignUpButton, UserButton, Show } from "@clerk/nextjs";
 
 export default function HomePage() {
   return (
@@ -15,7 +15,7 @@ export default function HomePage() {
           <Link href="/torneios" style={{ color: "#ccc", textDecoration: "none", fontSize: 14 }}>Torneios</Link>
           <Link href="/ranking" style={{ color: "#ccc", textDecoration: "none", fontSize: 14 }}>Ranking</Link>
           <Link href="/comunidade" style={{ color: "#ccc", textDecoration: "none", fontSize: 14 }}>Comunidade</Link>
-          <SignedOut>
+          <Show when="signed-out">
             <SignInButton mode="modal">
               <button style={{ color: "#ccc", background: "transparent", border: "none", fontSize: 14, cursor: "pointer" }}>Entrar</button>
             </SignInButton>
@@ -24,10 +24,10 @@ export default function HomePage() {
                 Tornar-me Sócio
               </button>
             </SignUpButton>
-          </SignedOut>
-          <SignedIn>
-            <UserButton afterSignOutUrl="/" />
-          </SignedIn>
+          </Show>
+          <Show when="signed-in">
+            <UserButton />
+          </Show>
         </div>
       </nav>
 
@@ -56,7 +56,7 @@ export default function HomePage() {
                 Tornar-me Sócio
               </button>
             </SignUpButton>
-            <Link href="/torneios" style={{ background: "rgba(255,255,255,0.1)", color: "#fff", fontWeight: 600, padding: "14px 28px", borderRadius: 9, border: "2px solid rgba(255,255,255,0.25)", fontSize: 16, textDecoration: "none", backdropFilter: "blur(4px)" }}>
+            <Link href="/torneios" style={{ background: "rgba(255,255,255,0.1)", color: "#fff", fontWeight: 600, padding: "14px 28px", borderRadius: 9, border: "2px solid rgba(255,255,255,0.25)", fontSize: 16, textDecoration: "none" }}>
               Ver Torneios
             </Link>
           </div>
@@ -95,10 +95,10 @@ export default function HomePage() {
             <span style={{ color: "#888", fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Jogador</span>
             <span style={{ color: "#888", fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Pontos</span>
           </div>
-          {[["🥇", "Carlos Ferreira", "1.240", "#F5C000"], ["🥈", "Ana Silva", "1.085", "#F5C000"], ["🥉", "Miguel Oliveira", "920", "#F5C000"]].map(([medal, name, pts, color]) => (
+          {[["🥇", "Carlos Ferreira", "1.240"], ["🥈", "Ana Silva", "1.085"], ["🥉", "Miguel Oliveira", "920"]].map(([medal, name, pts]) => (
             <div key={name} style={{ padding: "14px 20px", borderBottom: "1px solid #1a1a1a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>{medal} {name}</span>
-              <span style={{ color: color as string, fontWeight: 700, fontSize: 16 }}>{pts}</span>
+              <span style={{ color: "#F5C000", fontWeight: 700, fontSize: 16 }}>{pts}</span>
             </div>
           ))}
           <div style={{ padding: "14px 20px", textAlign: "center" }}>
