@@ -351,12 +351,12 @@ export default async function ImprimirTorneioPage({ params }: { params: Promise<
                               {i + 1}
                             </td>
                             <td style={{ ...tdStyle, fontWeight: i < 3 ? 700 : 400 }}>{row.label}</td>
-                            <td style={{ ...tdStyle, textAlign: "center", color: "#555" }}>{row.played}</td>
-                            <td style={{ ...tdStyle, textAlign: "center", fontWeight: 700, color: row.wins > 0 ? "#1a7a1a" : "#ccc" }}>{row.wins}</td>
-                            <td style={{ ...tdStyle, textAlign: "center", color: row.losses > 0 ? "#d32f2f" : "#ccc" }}>{row.losses}</td>
-                            <td style={{ ...tdStyle, textAlign: "center", fontFamily: "var(--font-oswald), sans-serif", fontSize: 15, fontWeight: 700 }}>{row.ptFor}</td>
-                            <td style={{ ...tdStyle, textAlign: "center", fontFamily: "var(--font-oswald), sans-serif", fontSize: 15, fontWeight: 700, color: balance >= 0 ? "#111" : "#d32f2f" }}>
-                              {balance > 0 ? `+${balance}` : balance}
+                            <td style={{ ...tdStyle, textAlign: "center", color: "#555" }}>{row.played || ""}</td>
+                            <td style={{ ...tdStyle, textAlign: "center", fontWeight: 700, color: "#1a7a1a" }}>{row.wins || ""}</td>
+                            <td style={{ ...tdStyle, textAlign: "center", color: "#d32f2f" }}>{row.losses || ""}</td>
+                            <td style={{ ...tdStyle, textAlign: "center", fontFamily: "var(--font-oswald), sans-serif", fontSize: 15, fontWeight: 700 }}>{row.ptFor || ""}</td>
+                            <td style={{ ...tdStyle, textAlign: "center", fontFamily: "var(--font-oswald), sans-serif", fontSize: 15, fontWeight: 700, color: balance < 0 ? "#d32f2f" : "#111" }}>
+                              {row.played ? (balance > 0 ? `+${balance}` : balance) : ""}
                             </td>
                           </tr>
                         );
