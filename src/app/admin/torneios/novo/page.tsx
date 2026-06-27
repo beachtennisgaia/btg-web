@@ -107,6 +107,7 @@ export default function NovoTorneioPage() {
                     const v = Number(e.target.value);
                     setNumGroups(v);
                     if (v <= 1) { setPairsAdvancing(0); setFinalsTemplate([]); }
+                    else if (pairsAdvancing === 0) { setPairsAdvancing(1); setFinalsTemplate(defaultBracket(v, 1)); }
                   }}>
                     <option value={1}>1 — Pool único</option>
                     <option value={2}>2 grupos</option>
