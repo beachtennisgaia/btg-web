@@ -191,7 +191,9 @@ export default async function ImprimirTorneioPage({ params }: { params: Promise<
           .btg-admin-sidebar,
           .btg-admin-topbar,
           .btg-admin-overlay,
-          .print-hide { display: none !important; }
+          .print-hide,
+          body > footer,
+          footer.btg-section { display: none !important; }
           .btg-admin-layout { display: block !important; }
           .btg-admin-content { background: #fff !important; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
