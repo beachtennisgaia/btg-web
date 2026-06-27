@@ -96,6 +96,7 @@ export function RegistrationForm({ tournamentId, registrationType, members }: Pr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [merged, setMerged] = useState(false);
 
   const isPairs = registrationType === "PAIRS";
   const withPartner = partnerId !== "";
@@ -116,6 +117,7 @@ export function RegistrationForm({ tournamentId, registrationType, members }: Pr
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao submeter inscrição");
+      setMerged(!!data.merged);
       setSuccess(true);
       router.refresh();
     } catch (err) {
@@ -129,9 +131,13 @@ export function RegistrationForm({ tournamentId, registrationType, members }: Pr
     return (
       <div style={{ background: "#fff", borderRadius: 16, padding: 32, textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
         <p style={{ fontSize: 40, margin: "0 0 12px" }}>🎉</p>
-        <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 22, color: "#111", margin: "0 0 8px" }}>INSCRIÇÃO SUBMETIDA!</p>
+        <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 22, color: "#111", margin: "0 0 8px" }}>
+          {merged ? "DUPLA FORMADA!" : "INSCRIÇÃO SUBMETIDA!"}
+        </p>
         <p style={{ fontSize: 14, color: "#888", margin: "0 0 24px" }}>
-          A tua inscrição foi registada com sucesso. Aguarda confirmação da organização.
+          {merged
+            ? "O teu parceiro já estava inscrito individualmente. A inscrição foi atualizada e ficam inscritos em dupla."
+            : "A tua inscrição foi registada com sucesso. Aguarda confirmação da organização."}
         </p>
         <a href="/torneios" style={{ display: "inline-block", background: "#111", color: "#F5C000", fontWeight: 700, padding: "12px 28px", borderRadius: 9, textDecoration: "none", fontSize: 14 }}>
           Ver todos os torneios
