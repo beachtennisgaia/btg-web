@@ -47,6 +47,19 @@ export async function deleteTournament(id: string) {
   revalidatePath("/torneios");
 }
 
+// ── REGISTRATIONS ─────────────────────────────────────────────
+
+export async function updateRegistrationStatus(id: string, status: "CONFIRMED" | "CANCELLED" | "PENDING") {
+  await requireAdmin();
+  const reg = await db.registration.update({
+    where: { id },
+    data: { status },
+    include: { tournament: true },
+  });
+  revalidatePath(`/admin/torneios/${reg.tournamentId}`);
+  revalidatePath("/torneios");
+}
+
 // ── MEMBERS ───────────────────────────────────────────────────
 
 export async function updateMember(
