@@ -207,6 +207,65 @@ export async function resetBracket(tournamentId: string) {
   revalidatePath(`/admin/torneios/${tournamentId}`);
 }
 
+export async function generateNonStopSchedule(tournamentId: string) {
+  await requireAdmin();
+
+  await db.match.deleteMany({ where: { tournamentId } });
+
+  const registrations = await db.registration.findMany({
+    where: { tournamentId, status: "CONFIRMED" },
+    orderBy: { createdAt: "asc" },
+  });
+  if (registrations.length < 2) throw new Error("Mínimo 2 duplas confirmadas");
+
+  // Circle method for balanced round-robin
+  const ids = registrations.map((r) => r.id);
+  if (ids.length % 2 !== 0) ids.push("bye"); // ghost for odd count
+  const n = ids.length;
+  const fixed = ids[0];
+  const rotating = ids.slice(1);
+  const courts = n / 2;
+
+  const matchData: {
+    tournamentId: string;
+    round: number;
+    position: number;
+    court: number;
+    pair1Id: string | null;
+    pair2Id: string | null;
+    winnerId: null;
+    completedAt: null;
+  }[] = [];
+
+  for (let round = 0; round < n - 1; round++) {
+    const roundPairs: [string, string][] = [[fixed, rotating[0]]];
+    for (let i = 1; i < courts; i++) {
+      roundPairs.push([rotating[i], rotating[n - 1 - i]]);
+    }
+
+    roundPairs.forEach(([a, b], court) => {
+      const hasBye = a === "bye" || b === "bye";
+      if (hasBye) return;
+      matchData.push({
+        tournamentId,
+        round: round + 1,
+        position: court + 1,
+        court: court + 1,
+        pair1Id: a,
+        pair2Id: b,
+        winnerId: null,
+        completedAt: null,
+      });
+    });
+
+    // Rotate: last element comes to front
+    rotating.unshift(rotating.pop()!);
+  }
+
+  await db.match.createMany({ data: matchData });
+  revalidatePath(`/admin/torneios/${tournamentId}`);
+}
+
 export async function generateBracket(tournamentId: string) {
   await requireAdmin();
 
@@ -282,6 +341,19 @@ export async function updateMatchResult(matchId: string, score1: number, score2:
   });
   revalidatePath(`/admin/torneios/${match.tournamentId}`);
   revalidatePath(`/torneios/${match.tournamentId}`);
+}
+
+export async function updateNonStopResult(matchId: string, games1: number, games2: number) {
+  await requireAdmin();
+  const match = await db.match.findUnique({ where: { id: matchId } });
+  if (!match) throw new Error("Match não encontrado");
+
+  const winnerId = games1 > games2 ? match.pair1Id : games2 > games1 ? match.pair2Id : null;
+  await db.match.update({
+    where: { id: matchId },
+    data: { score1: games1, score2: games2, winnerId, completedAt: new Date() },
+  });
+  revalidatePath(`/admin/torneios/${match.tournamentId}`);
 }
 
 export async function resetMatch(matchId: string) {

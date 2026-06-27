@@ -92,6 +92,7 @@ model Tournament {
   maxPairs         Int                        @default(16)
   status           TournamentStatus           @default(DRAFT)
   description      String?
+  durationMinutes  Int?                       // Non-Stop only: minutes per match
   createdAt        DateTime                   @default(now())
   updatedAt        DateTime                   @updatedAt
 
@@ -142,6 +143,7 @@ model Match {
   pair1Id      String?
   pair2        Registration? @relation("Pair2", fields: [pair2Id], references: [id])
   pair2Id      String?
+  court        Int?
   score1       Int?
   score2       Int?
   winnerId     String?

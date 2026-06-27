@@ -11,6 +11,7 @@ export default function NovoTorneioPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [format, setFormat] = useState("ELIMINATION");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -61,7 +62,7 @@ export default function NovoTorneioPage() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <div>
               <label style={labelStyle}>Formato *</label>
-              <select name="format" required style={selectStyle}>
+              <select name="format" required style={selectStyle} value={format} onChange={(e) => setFormat(e.target.value)}>
                 <option value="ELIMINATION">Eliminatório</option>
                 <option value="NON_STOP">Non-Stop</option>
               </select>
@@ -76,6 +77,16 @@ export default function NovoTorneioPage() {
               </select>
             </div>
           </div>
+
+          {format === "NON_STOP" && (
+            <div>
+              <label style={labelStyle}>Duração por partida (minutos) *</label>
+              <input name="durationMinutes" type="number" required defaultValue={12} min={5} max={30} style={inputStyle} />
+              <p style={{ fontSize: 11, color: "#999", margin: "6px 0 0" }}>
+                Tempo de jogo por partida. Quadras = nº de duplas ÷ 2 (todas jogam em simultâneo).
+              </p>
+            </div>
+          )}
 
           <div>
             <label style={labelStyle}>Tipo de inscrição *</label>

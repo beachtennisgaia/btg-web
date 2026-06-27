@@ -24,6 +24,7 @@ export async function POST(req: Request) {
   const registrationType = formData.get("registrationType") as string;
   const maxPairs = Number(formData.get("maxPairs"));
   const description = (formData.get("description") as string) || null;
+  const durationMinutes = formData.get("durationMinutes") ? Number(formData.get("durationMinutes")) : null;
 
   if (!name || !date || !location) {
     return NextResponse.json({ error: "Campos obrigatórios em falta" }, { status: 400 });
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
       registrationType: registrationType as never,
       maxPairs,
       description,
+      durationMinutes,
       status: "DRAFT",
     },
   });

@@ -4,6 +4,7 @@ import { updateTournamentStatus } from "@/lib/actions";
 import Link from "next/link";
 import { RegistrationsTable } from "./registrations-table";
 import { MatchesSection } from "./matches-section";
+import { NonStopSection } from "./non-stop-section";
 import { DrawSection } from "./draw-section";
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: "Rascunho", OPEN: "Inscrições Abertas", ONGOING: "A Decorrer", FINISHED: "Concluído" };
@@ -100,14 +101,24 @@ export default async function TorneioDetailPage({ params }: { params: Promise<{ 
         ) : null;
       })()}
 
-      {/* Matches / Bracket */}
+      {/* Matches / Bracket or Non-Stop Schedule */}
       {(tournament.status === "ONGOING" || tournament.status === "FINISHED") && (
-        <MatchesSection
-          tournamentId={id}
-          matches={tournament.matches}
-          regs={tournament.registrations}
-          hasConfirmedRegs={tournament.registrations.some((r) => r.status === "CONFIRMED")}
-        />
+        tournament.format === "NON_STOP" ? (
+          <NonStopSection
+            tournamentId={id}
+            matches={tournament.matches}
+            regs={tournament.registrations}
+            hasConfirmedRegs={tournament.registrations.some((r) => r.status === "CONFIRMED")}
+            durationMinutes={tournament.durationMinutes}
+          />
+        ) : (
+          <MatchesSection
+            tournamentId={id}
+            matches={tournament.matches}
+            regs={tournament.registrations}
+            hasConfirmedRegs={tournament.registrations.some((r) => r.status === "CONFIRMED")}
+          />
+        )
       )}
     </div>
   );
