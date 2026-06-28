@@ -42,16 +42,20 @@ src/
     db.ts               ← singleton Prisma+Neon
     actions.ts          ← Server Actions (requer role ADMIN)
   app/
+    icon.svg            ← favicon SVG (fundo #111, texto "BTG" em #F5C000)
     globals.css         ← inclui classes btg-* responsivas + @keyframes heroFadeIn
+    layout.tsx          ← root layout com Google Analytics (G-TN8VZPFPNL, afterInteractive)
     page.tsx            ← homepage pública (ISR 60s)
     torneios/
       page.tsx          ← lista pública com duas queries (non-finished + finished com matches)
       tournaments-view.tsx ← client component com tabs + cards para cada estado
-    ranking/            ← ranking público
+    ranking/            ← ranking público — stats (torneios/pontos/por realizar) são dinâmicos
     comunidade/         ← feed público (posts + sidebar com eventos reais da DB)
     dashboard/          ← área de sócio (protegida pelo Clerk)
     admin/              ← área de admin (role ADMIN obrigatório)
       layout.tsx        ← verifica role ADMIN, redireciona se não tiver
+      socios/
+        page.tsx        ← tabela inline (nível, quota, role, nº) + botão "✏️ Editar" por sócio
       hero/             ← galeria de imagens para o hero da homepage
         page.tsx        ← server component
         hero-gallery-manager.tsx ← client component (upload + gestão)
@@ -60,8 +64,10 @@ src/
       member/           ← criar/atualizar perfil
       admin/            ← endpoints protegidos para admin
         hero-images/    ← GET/POST/PATCH/DELETE imagens hero (Vercel Blob)
+        members/[id]/   ← PATCH aceita: name, phone, gender, level, role, memberNumber, quotaYear
   components/
     nav.tsx             ← nav partilhada (client component, hamburger em mobile)
+    admin-nav.tsx       ← nav do admin (hamburger mobile, sidebar slide-in, overlay)
     auth-buttons.tsx    ← HeroAuthButtons + CtaSignUpButton (client, com Show)
     hero-slideshow.tsx  ← slideshow cross-fade para o hero
     bracket-builder.tsx ← drag-and-drop para quadros de torneio
@@ -112,9 +118,9 @@ if (!member || member.role !== "ADMIN") redirect("/dashboard");
 
 | Modelo | Campos-chave |
 |--------|-------------|
-| `Member` | `clerkId`, `name`, `email`, `level`, `role`, `memberNumber`, `quotaYear` |
-| `Tournament` | `name`, `date`, `location`, `format`, `category`, `maxPairs`, `status`, `finalsTemplate` |
-| `Registration` | `tournamentId`, `player1Id`, `player2Id`, `status`, `seedNumber` |
+| `Member` | `clerkId`, `name`, `email`, `phone`, `gender`, `level`, `role`, `memberNumber`, `quotaYear` |
+| `Tournament` | `name`, `date`, `location`, `format`, `category`, `maxPairs`, `status`, `finalsTemplate`, `isPaid`, `pricePerPlayer` |
+| `Registration` | `tournamentId`, `player1Id`, `player2Id`, `status`, `seedNumber`, `paid` |
 | `Match` | `tournamentId`, `round`, `position`, `groupNumber`, `pair1Id`, `pair2Id`, `score1`, `score2`, `winnerId`, `completedAt` |
 | `RankingPoint` | `memberId`, `tournamentId`, `points`, `year` |
 | `Post` | `authorId`, `type` (ANNOUNCEMENT\|COMMUNITY), `content` |
