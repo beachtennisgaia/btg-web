@@ -694,6 +694,14 @@ export async function updateNonStopResult(matchId: string, games1: number, games
   revalidatePath(`/admin/torneios/${match.tournamentId}`);
 }
 
+export async function resetNonStopMatch(matchId: string) {
+  await requireAdmin();
+  const match = await db.match.findUnique({ where: { id: matchId } });
+  if (!match) throw new Error("Match não encontrado");
+  await db.match.update({ where: { id: matchId }, data: { score1: null, score2: null, winnerId: null, completedAt: null } });
+  revalidatePath(`/admin/torneios/${match.tournamentId}`);
+}
+
 export async function resetMatch(matchId: string) {
   await requireAdmin();
   const match = await db.match.findUnique({ where: { id: matchId } });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { generateNonStopSchedule, updateNonStopResult, resetMatch, resetBracket, assignGroups, completeGroupPhase, reopenGroupPhase, generateFinals, advanceFinalsRound, saveFinalsBracket } from "@/lib/actions";
+import { generateNonStopSchedule, updateNonStopResult, resetNonStopMatch, resetBracket, assignGroups, completeGroupPhase, reopenGroupPhase, generateFinals, advanceFinalsRound, saveFinalsBracket } from "@/lib/actions";
 import type { FinalsBracketTemplate } from "@/lib/actions";
 import { BracketBuilder, slotLabel } from "@/components/bracket-builder";
 import type { BracketEntry } from "@/components/bracket-builder";
@@ -70,7 +70,7 @@ function GameRow({ match, regs }: { match: Match; regs: Registration[] }) {
   function handleReset() {
     startTransition(async () => {
       try {
-        await resetMatch(match.id);
+        await resetNonStopMatch(match.id);
         setG1(""); setG2("");
       } catch (e) { setError((e as Error).message); }
     });
