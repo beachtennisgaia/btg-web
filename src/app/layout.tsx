@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Oswald } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Footer } from "@/components/footer";
+import Script from "next/script";
 import "./globals.css";
 
 const inter = Inter({
@@ -32,6 +33,13 @@ export default function RootLayout({
         className={`${inter.variable} ${oswald.variable} h-full antialiased`}
       >
         <body className="min-h-full flex flex-col">
+          <Script src="https://www.googletagmanager.com/gtag/js?id=G-TN8VZPFPNL" strategy="afterInteractive" />
+          <Script id="gtag-init" strategy="afterInteractive">{`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-TN8VZPFPNL');
+          `}</Script>
           {children}
           <Footer />
         </body>
