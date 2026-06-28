@@ -3,7 +3,6 @@ import { db } from "@/lib/db";
 import { BASE_POINTS, TAIL_POINTS, MAX_RESULTS, pointsForPosition } from "@/lib/ranking";
 
 const YEAR = 2026;
-const EXAMPLE_PAIRS = 8;
 
 const BADGE = [
   { bg: "#F5C000", color: "#111", rowBg: "#FFFDE7" },
@@ -11,20 +10,19 @@ const BADGE = [
   { bg: "#FFE0B2", color: "#BF6000", rowBg: "#fff" },
 ];
 
-function initials(name: string) {
-  return name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-}
+const LEVELS = [
+  { key: "", label: "Geral" },
+  { key: "BEGINNER", label: "Iniciante" },
+  { key: "INTERMEDIATE", label: "Intermédio" },
+  { key: "ADVANCED", label: "Avançado" },
+];
 
-function levelLabel(level: string) {
-  const map: Record<string, string> = {
-    BEGINNER: "Iniciante",
-    INTERMEDIATE: "Intermédio",
-    ADVANCED: "Avançado",
-  };
-  return map[level] ?? level;
-}
+const LEVEL_LABEL: Record<string, string> = {
+  BEGINNER: "Iniciante",
+  INTERMEDIATE: "Intermédio",
+  ADVANCED: "Avançado",
+};
 
-// Tabela de pontos de exemplo para a documentação
 const DOC_POSITIONS = [
   { label: "Campeão", pos: 1 },
   { label: "Finalista", pos: 2 },
@@ -37,14 +35,29 @@ const DOC_POSITIONS = [
   { label: "Restantes", pos: 9 },
 ];
 
-export default async function RankingPage() {
+function initials(name: string) {
+  return name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+}
+
+export default async function RankingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ nivel?: string }>;
+}) {
+  const { nivel } = await searchParams;
+  const activeNivel = nivel ?? "";
+
   const [members, finishedCount, upcomingCount] = await Promise.all([
     db.member.findMany({ include: { rankingPoints: { where: { year: YEAR } } } }),
     db.tournament.count({ where: { status: "FINISHED" } }),
     db.tournament.count({ where: { status: { in: ["DRAFT", "OPEN", "ONGOING"] } } }),
   ]);
 
-  const rankings = members
+  const filtered = activeNivel
+    ? members.filter((m) => m.level === activeNivel)
+    : members;
+
+  const rankings = filtered
     .map((m) => ({
       member: m,
       totalPoints: m.rankingPoints.reduce((s, r) => s + r.points, 0),
@@ -53,7 +66,10 @@ export default async function RankingPage() {
     .filter((r) => r.tournaments > 0)
     .sort((a, b) => b.totalPoints - a.totalPoints);
 
-  const totalPointsRegistered = rankings.reduce((s, r) => s + r.totalPoints, 0);
+  const totalPointsRegistered = members.reduce(
+    (s, m) => s + m.rankingPoints.reduce((ss, r) => ss + r.points, 0),
+    0
+  );
   const isEmpty = rankings.length === 0;
 
   return (
@@ -71,6 +87,33 @@ export default async function RankingPage() {
       </div>
 
       <div className="btg-page-content">
+
+        {/* TABS */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+          {LEVELS.map(({ key, label }) => {
+            const isActive = activeNivel === key;
+            return (
+              <a
+                key={key}
+                href={key ? `/ranking?nivel=${key}` : "/ranking"}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: 24,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  textDecoration: "none",
+                  background: isActive ? "#F5C000" : "#fff",
+                  color: isActive ? "#111" : "#555",
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+                  transition: "background 0.15s",
+                }}
+              >
+                {label}
+              </a>
+            );
+          })}
+        </div>
+
         <div style={{ background: "#fff", borderRadius: 20, overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.08)" }}>
 
           {/* TABLE HEADER */}
@@ -79,19 +122,20 @@ export default async function RankingPage() {
               RANKING BTG
             </span>
             <span style={{ fontSize: 12, color: "#F5C000", fontWeight: 600 }}>
-              {YEAR} · Geral
+              {YEAR} · {activeNivel ? LEVEL_LABEL[activeNivel] : "Geral"}
             </span>
           </div>
 
           {isEmpty ? (
-            /* EMPTY STATE */
             <div style={{ padding: "64px 32px", textAlign: "center" }}>
               <div style={{ fontSize: 56, marginBottom: 16 }}>🎾</div>
               <h2 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 26, fontWeight: 700, color: "#111", margin: "0 0 10px", letterSpacing: "0.03em" }}>
-                TEMPORADA {YEAR} A ARRANCAR
+                {activeNivel ? `SEM PONTOS — ${LEVEL_LABEL[activeNivel].toUpperCase()}` : `TEMPORADA ${YEAR} A ARRANCAR`}
               </h2>
               <p style={{ fontSize: 15, color: "#666", maxWidth: 400, margin: "0 auto 32px", lineHeight: 1.7 }}>
-                O ranking ainda não tem pontos registados. Os pontos são atribuídos após cada torneio BTG disputado.
+                {activeNivel
+                  ? `Ainda não há jogadores do nível ${LEVEL_LABEL[activeNivel]} com pontos registados.`
+                  : "O ranking ainda não tem pontos registados. Os pontos são atribuídos após cada torneio BTG disputado."}
               </p>
               <div style={{ display: "flex", gap: 20, justifyContent: "center", flexWrap: "wrap", marginBottom: 40 }}>
                 <div style={{ background: "#F9F9F9", borderRadius: 14, padding: "18px 24px", textAlign: "center", minWidth: 140 }}>
@@ -113,12 +157,8 @@ export default async function RankingPage() {
               >
                 Ver próximos torneios →
               </a>
-              <p style={{ fontSize: 12, color: "#aaa", marginTop: 16 }}>
-                O ranking é atualizado automaticamente após cada torneio concluído.
-              </p>
             </div>
           ) : (
-            /* RANKING TABLE */
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: "#F9F9F9", borderBottom: "1px solid #eee" }}>
@@ -162,7 +202,7 @@ export default async function RankingPage() {
                           </div>
                           <div>
                             <p style={{ fontWeight: 600, fontSize: 14, color: "#111", margin: 0 }}>{member.name}</p>
-                            <p style={{ fontSize: 11, color: "#888", margin: 0 }}>{levelLabel(member.level)}</p>
+                            <p style={{ fontSize: 11, color: "#888", margin: 0 }}>{LEVEL_LABEL[member.level] ?? member.level}</p>
                           </div>
                         </div>
                       </td>
@@ -211,11 +251,25 @@ export default async function RankingPage() {
                 PRINCÍPIOS GERAIS
               </h3>
               <ul style={{ margin: 0, padding: "0 0 0 20px", color: "#444", fontSize: 14, lineHeight: 1.9 }}>
-                <li>Os pontos são individuais — cada jogador acumula pontos independentemente do parceiro</li>
+                <li>Os pontos são <strong>individuais</strong> — cada jogador acumula pontos independentemente do parceiro</li>
                 <li>Contam os <strong>melhores {MAX_RESULTS} resultados</strong> dos últimos 12 meses (época rolante)</li>
                 <li>Os pontos de cada torneio têm validade de <strong>52 semanas</strong></li>
-                <li>O ranking é atualizado automaticamente após cada torneio concluído</li>
+                <li>Podes filtrar o ranking por nível de jogo nas tabs acima</li>
+                <li>O ranking é actualizado automaticamente após cada torneio concluído</li>
               </ul>
+            </div>
+
+            {/* Fórmula */}
+            <div style={{ background: "#F9F9F9", borderRadius: 12, padding: "16px 20px", marginBottom: 24 }}>
+              <h3 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 14, fontWeight: 700, color: "#111", margin: "0 0 8px", letterSpacing: "0.04em" }}>
+                FÓRMULA DE CÁLCULO
+              </h3>
+              <p style={{ fontSize: 13, color: "#555", margin: 0, lineHeight: 1.9 }}>
+                <strong>Pontos = base × nível × tamanho</strong><br />
+                · <strong>Base</strong>: pontos fixos por posição (ver tabela abaixo)<br />
+                · <strong>Nível do torneio</strong>: Nível 1 = ×2,0 · Nível 2 = ×1,0<br />
+                · <strong>Tamanho</strong>: 1 + log₁₀(duplas / 8) — 8 duplas = ×1,0 · 16 ≈ ×1,3 · 32 ≈ ×1,6
+              </p>
             </div>
 
             {/* Tabela de pontos */}
@@ -224,16 +278,16 @@ export default async function RankingPage() {
                 PONTOS POR POSIÇÃO
               </h3>
               <p style={{ fontSize: 13, color: "#888", margin: "0 0 12px" }}>
-                Exemplo para um torneio com 8 duplas. Com mais participantes, os pontos escalam proporcionalmente.
+                Com 8 duplas como referência. Nível 1 duplica estes valores; mais duplas aumentam-nos proporcionalmente.
               </p>
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                   <thead>
                     <tr style={{ background: "#F9F9F9", borderBottom: "2px solid #eee" }}>
                       <th style={{ padding: "8px 14px", textAlign: "left", color: "#888", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>Posição</th>
-                      <th style={{ padding: "8px 14px", textAlign: "right", color: "#888", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>8 duplas</th>
-                      <th style={{ padding: "8px 14px", textAlign: "right", color: "#888", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>16 duplas</th>
-                      <th style={{ padding: "8px 14px", textAlign: "right", color: "#888", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>32 duplas</th>
+                      <th style={{ padding: "8px 14px", textAlign: "right", color: "#888", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>Nível 2 · 8 duplas</th>
+                      <th style={{ padding: "8px 14px", textAlign: "right", color: "#F5C000", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>Nível 1 · 8 duplas</th>
+                      <th style={{ padding: "8px 14px", textAlign: "right", color: "#F5C000", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>Nível 1 · 16 duplas</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -243,27 +297,24 @@ export default async function RankingPage() {
                           {idx === 0 && <span style={{ marginRight: 6 }}>🏆</span>}
                           {label}
                         </td>
+                        <td style={{ padding: "9px 14px", textAlign: "right", color: "#555" }}>
+                          {pointsForPosition(pos, 8, 2)} pts
+                        </td>
                         <td style={{ padding: "9px 14px", textAlign: "right", fontWeight: 600, color: "#111" }}>
-                          {pointsForPosition(pos, 8)} pts
+                          {pointsForPosition(pos, 8, 1)} pts
                         </td>
-                        <td style={{ padding: "9px 14px", textAlign: "right", fontWeight: 600, color: "#555" }}>
-                          {pointsForPosition(pos, 16)} pts
-                        </td>
-                        <td style={{ padding: "9px 14px", textAlign: "right", fontWeight: 600, color: "#555" }}>
-                          {pointsForPosition(pos, 32)} pts
+                        <td style={{ padding: "9px 14px", textAlign: "right", fontWeight: 600, color: "#111" }}>
+                          {pointsForPosition(pos, 16, 1)} pts
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <p style={{ fontSize: 12, color: "#aaa", marginTop: 8 }}>
-                Fórmula: pontos base × (1 + log₁₀(nº duplas / 8)). Com 8 duplas o multiplicador é ×1,0; com 16 duplas ≈ ×1,3; com 32 duplas ≈ ×1,6.
-              </p>
             </div>
 
             {/* Formatos */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <div style={{ background: "#F9F9F9", borderRadius: 12, padding: "18px 20px" }}>
                 <h4 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 14, fontWeight: 700, color: "#111", margin: "0 0 8px", letterSpacing: "0.04em" }}>
                   FORMATO NON-STOP
@@ -277,7 +328,7 @@ export default async function RankingPage() {
                   FORMATO ELIMINATÓRIO
                 </h4>
                 <p style={{ fontSize: 13, color: "#555", margin: 0, lineHeight: 1.8 }}>
-                  A posição é definida pela ronda mais longe atingida. Os dois finalistas recebem 1.º e 2.º lugar. Os semifinalistas ficam em 3.º lugar. Os quartofinalistam em 5.º lugar, e assim sucessivamente.
+                  A posição é definida pela ronda mais longe atingida. Os dois finalistas recebem 1.º e 2.º lugar. Os semifinalistas ficam em 3.º. Os quartofinalistam em 5.º, e assim sucessivamente.
                 </p>
               </div>
             </div>

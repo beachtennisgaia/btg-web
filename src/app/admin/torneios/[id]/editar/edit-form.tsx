@@ -20,6 +20,7 @@ type Tournament = {
   finalsTemplate: FinalsBracketTemplate | null;
   isPaid: boolean;
   pricePerPlayer: number | null;
+  level: number;
 };
 
 export function EditTournamentForm({ tournament }: { tournament: Tournament }) {
@@ -128,6 +129,15 @@ export function EditTournamentForm({ tournament }: { tournament: Tournament }) {
           <div>
             <label style={labelStyle}>Descrição</label>
             <textarea name="description" rows={3} defaultValue={tournament.description} placeholder="Informações adicionais sobre o torneio..." style={{ ...inputStyle, resize: "vertical" }} />
+          </div>
+
+          {/* Level */}
+          <div>
+            <label style={labelStyle}>Nível do torneio *</label>
+            <select name="level" required style={selectStyle} defaultValue={tournament.level}>
+              <option value="1">Nível 1 — Torneio principal (pontos ×2)</option>
+              <option value="2">Nível 2 — Torneio regular (pontos ×1)</option>
+            </select>
           </div>
 
           {/* Payment */}

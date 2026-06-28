@@ -187,7 +187,8 @@ export async function autoComputeRankingPoints(tournamentId: string) {
   const entries = computeRankingEntries(
     tournament.format as "ELIMINATION" | "NON_STOP",
     matches,
-    registrations
+    registrations,
+    tournament.level,
   );
 
   if (entries.length === 0) throw new Error("Sem resultados para calcular — verifica se os jogos estão todos concluídos");

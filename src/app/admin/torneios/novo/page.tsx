@@ -119,6 +119,18 @@ export default function NovoTorneioPage() {
               <textarea name="description" rows={3} placeholder="Informações adicionais sobre o torneio..." style={{ ...inputStyle, resize: "vertical" }} />
             </div>
 
+            {/* Level */}
+            <div>
+              <label style={labelStyle}>Nível do torneio *</label>
+              <select name="level" required style={selectStyle} defaultValue="2">
+                <option value="1">Nível 1 — Torneio principal (pontos ×2)</option>
+                <option value="2">Nível 2 — Torneio regular (pontos ×1)</option>
+              </select>
+              <p style={{ fontSize: 11, color: "#999", margin: "5px 0 0" }}>
+                Nível 1 para torneios de maior prestígio; Nível 2 para torneios regulares.
+              </p>
+            </div>
+
             {/* Payment */}
             <div style={{ display: "grid", gridTemplateColumns: isPaid ? "1fr 1fr" : "1fr", gap: 14 }}>
               <div>

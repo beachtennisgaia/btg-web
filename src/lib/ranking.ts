@@ -13,14 +13,18 @@ export const BASE_POINTS: Record<number, number> = {
 export const TAIL_POINTS = 1;
 export const MAX_RESULTS = 6; // melhores N resultados contam por época
 
+// Level 1 (prestígio) = ×2.0; Level 2 (regular) = ×1.0
+export const LEVEL_MULTIPLIER: Record<number, number> = { 1: 2.0, 2: 1.0 };
+
 // Multiplier based on draw size: 8 pairs = ×1.0; 16 ≈ ×1.30; 32 ≈ ×1.60
 export function sizeMultiplier(nPairs: number): number {
   return 1 + Math.log10(Math.max(nPairs, 8) / 8);
 }
 
-export function pointsForPosition(position: number, nPairs: number): number {
+export function pointsForPosition(position: number, nPairs: number, level: number = 2): number {
   const base = BASE_POINTS[position] ?? TAIL_POINTS;
-  return Math.max(1, Math.round(base * sizeMultiplier(nPairs)));
+  const levelMult = LEVEL_MULTIPLIER[level] ?? 1.0;
+  return Math.max(1, Math.round(base * sizeMultiplier(nPairs) * levelMult));
 }
 
 type SimpleMatch = {
@@ -136,7 +140,8 @@ export type RankingEntry = { memberId: string; points: number; position: number 
 export function computeRankingEntries(
   format: "ELIMINATION" | "NON_STOP",
   matches: SimpleMatch[],
-  registrations: SimpleReg[]
+  registrations: SimpleReg[],
+  level: number = 2,
 ): RankingEntry[] {
   const nPairs = registrations.length;
   const positions =
@@ -148,7 +153,7 @@ export function computeRankingEntries(
   for (const [regId, position] of positions.entries()) {
     const reg = registrations.find((r) => r.id === regId);
     if (!reg) continue;
-    const pts = pointsForPosition(position, nPairs);
+    const pts = pointsForPosition(position, nPairs, level);
     result.push({ memberId: reg.player1Id, points: pts, position });
     if (reg.player2Id) result.push({ memberId: reg.player2Id, points: pts, position });
   }

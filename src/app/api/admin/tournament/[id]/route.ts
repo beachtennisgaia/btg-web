@@ -18,10 +18,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const body = await req.json();
 
-  const numericFields = new Set(["maxPairs", "durationMinutes", "totalDurationMinutes", "numGroups", "pairsAdvancing", "pricePerPlayer"]);
+  const numericFields = new Set(["maxPairs", "durationMinutes", "totalDurationMinutes", "numGroups", "pairsAdvancing", "pricePerPlayer", "level"]);
   const booleanFields = new Set(["isPaid"]);
   const jsonFields = new Set(["finalsTemplate"]);
-  const allowed = ["name", "date", "location", "format", "category", "registrationType", "maxPairs", "description", "durationMinutes", "totalDurationMinutes", "numGroups", "pairsAdvancing", "finalsTemplate", "isPaid", "pricePerPlayer"];
+  const allowed = ["name", "date", "location", "format", "category", "registrationType", "maxPairs", "description", "durationMinutes", "totalDurationMinutes", "numGroups", "pairsAdvancing", "finalsTemplate", "isPaid", "pricePerPlayer", "level"];
   const data: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) {

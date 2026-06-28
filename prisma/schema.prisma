@@ -101,6 +101,7 @@ model Tournament {
   finalsTemplate       Json?                  // Array of { round, position, label, slot1, slot2 }
   isPaid           Boolean                    @default(false)
   pricePerPlayer   Float?
+  level            Int                        @default(2)
   createdAt        DateTime                   @default(now())
   updatedAt        DateTime                   @updatedAt
 

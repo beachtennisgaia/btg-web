@@ -32,6 +32,7 @@ export async function POST(req: Request) {
   const finalsTemplate = finalsTemplateRaw ? JSON.parse(finalsTemplateRaw) : null;
   const isPaid = formData.get("isPaid") === "true";
   const pricePerPlayer = formData.get("pricePerPlayer") ? Number(formData.get("pricePerPlayer")) : null;
+  const level = formData.get("level") ? Number(formData.get("level")) : 2;
 
   if (!name || !date || !location) {
     return NextResponse.json({ error: "Campos obrigatórios em falta" }, { status: 400 });
@@ -54,6 +55,7 @@ export async function POST(req: Request) {
       finalsTemplate,
       isPaid,
       pricePerPlayer,
+      level,
       status: "DRAFT",
     },
   });
