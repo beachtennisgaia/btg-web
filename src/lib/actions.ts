@@ -3,6 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { computeRankingEntries } from "@/lib/ranking";
 
 async function requireAdmin() {
   const { userId } = await auth();
@@ -167,6 +168,42 @@ export async function deleteRankingPoint(memberId: string, tournamentId: string)
   await db.rankingPoint.delete({
     where: { memberId_tournamentId: { memberId, tournamentId } },
   });
+  revalidatePath("/admin/ranking");
+  revalidatePath("/ranking");
+}
+
+export async function autoComputeRankingPoints(tournamentId: string) {
+  await requireAdmin();
+
+  const [tournament, matches, registrations] = await Promise.all([
+    db.tournament.findUniqueOrThrow({ where: { id: tournamentId } }),
+    db.match.findMany({ where: { tournamentId } }),
+    db.registration.findMany({
+      where: { tournamentId, status: "CONFIRMED" },
+      select: { id: true, player1Id: true, player2Id: true },
+    }),
+  ]);
+
+  const entries = computeRankingEntries(
+    tournament.format as "ELIMINATION" | "NON_STOP",
+    matches,
+    registrations
+  );
+
+  if (entries.length === 0) throw new Error("Sem resultados para calcular — verifica se os jogos estão todos concluídos");
+
+  const year = tournament.date.getFullYear();
+
+  await db.$transaction(
+    entries.map(({ memberId, points }) =>
+      db.rankingPoint.upsert({
+        where: { memberId_tournamentId: { memberId, tournamentId } },
+        create: { memberId, tournamentId, points, year },
+        update: { points },
+      })
+    )
+  );
+
   revalidatePath("/admin/ranking");
   revalidatePath("/ranking");
 }

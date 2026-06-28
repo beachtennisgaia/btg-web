@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { upsertRankingPoint, deleteRankingPoint } from "@/lib/actions";
+import { upsertRankingPoint, deleteRankingPoint, autoComputeRankingPoints } from "@/lib/actions";
 
 export default async function AdminRankingPage() {
   const [tournaments, members] = await Promise.all([
@@ -13,7 +13,9 @@ export default async function AdminRankingPage() {
     <div style={{ padding: 32, maxWidth: 900 }}>
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 28, fontWeight: 700, color: "#111", margin: 0 }}>RANKING — LANÇAR PONTOS</h1>
-        <p style={{ color: "#888", fontSize: 14, margin: "4px 0 0" }}>Atribui pontos por torneio concluído. Só aparecem torneios com estado "Concluído".</p>
+        <p style={{ color: "#888", fontSize: 14, margin: "4px 0 0" }}>
+          Usa "Calcular automaticamente" para atribuir pontos com base nos resultados do torneio, ou ajusta manualmente por sócio.
+        </p>
       </div>
 
       {tournaments.length === 0 ? (
@@ -30,13 +32,23 @@ export default async function AdminRankingPage() {
 
             return (
               <div key={t.id} style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-                <div style={{ background: "#111", padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 600, color: "#fff", letterSpacing: "0.04em" }}>
-                    {t.name.toUpperCase()}
-                  </span>
-                  <span style={{ fontSize: 12, color: "#888" }}>
-                    {new Date(t.date).toLocaleDateString("pt-PT", { day: "numeric", month: "short", year: "numeric" })} · {tPoints.length} pontuações
-                  </span>
+                <div style={{ background: "#111", padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                  <div>
+                    <span style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 600, color: "#fff", letterSpacing: "0.04em" }}>
+                      {t.name.toUpperCase()}
+                    </span>
+                    <span style={{ fontSize: 12, color: "#888", marginLeft: 12 }}>
+                      {new Date(t.date).toLocaleDateString("pt-PT", { day: "numeric", month: "short", year: "numeric" })} · {tPoints.length} pontuações
+                    </span>
+                  </div>
+                  <form action={autoComputeRankingPoints.bind(null, t.id)}>
+                    <button
+                      type="submit"
+                      style={{ background: "#F5C000", color: "#111", fontWeight: 700, padding: "7px 16px", borderRadius: 8, border: "none", fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
+                    >
+                      Calcular automaticamente
+                    </button>
+                  </form>
                 </div>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>

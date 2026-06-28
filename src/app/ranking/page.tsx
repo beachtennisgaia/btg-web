@@ -1,7 +1,9 @@
 import { Nav } from "@/components/nav";
 import { db } from "@/lib/db";
+import { BASE_POINTS, TAIL_POINTS, MAX_RESULTS, pointsForPosition } from "@/lib/ranking";
 
 const YEAR = 2026;
+const EXAMPLE_PAIRS = 8;
 
 const BADGE = [
   { bg: "#F5C000", color: "#111", rowBg: "#FFFDE7" },
@@ -21,6 +23,19 @@ function levelLabel(level: string) {
   };
   return map[level] ?? level;
 }
+
+// Tabela de pontos de exemplo para a documentação
+const DOC_POSITIONS = [
+  { label: "Campeão", pos: 1 },
+  { label: "Finalista", pos: 2 },
+  { label: "3.º lugar", pos: 3 },
+  { label: "4.º lugar", pos: 4 },
+  { label: "5.º lugar", pos: 5 },
+  { label: "6.º lugar", pos: 6 },
+  { label: "7.º lugar", pos: 7 },
+  { label: "8.º lugar", pos: 8 },
+  { label: "Restantes", pos: 9 },
+];
 
 export default async function RankingPage() {
   const [members, finishedCount, upcomingCount] = await Promise.all([
@@ -162,6 +177,112 @@ export default async function RankingPage() {
             </table>
           )}
         </div>
+
+        {/* DOCUMENTATION */}
+        <details style={{ marginTop: 24 }}>
+          <summary style={{
+            background: "#fff",
+            borderRadius: 16,
+            padding: "18px 24px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+            cursor: "pointer",
+            listStyle: "none",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            fontWeight: 600,
+            fontSize: 15,
+            color: "#111",
+          }}>
+            <span>Como funciona o ranking BTG?</span>
+            <span style={{ fontSize: 20, color: "#F5C000", fontWeight: 700 }}>+</span>
+          </summary>
+
+          <div style={{
+            background: "#fff",
+            borderRadius: "0 0 16px 16px",
+            padding: "0 24px 28px",
+            boxShadow: "0 4px 8px rgba(0,0,0,0.06)",
+            marginTop: -4,
+          }}>
+            {/* Princípios */}
+            <div style={{ borderTop: "1px solid #f0f0f0", paddingTop: 24, marginBottom: 24 }}>
+              <h3 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 700, color: "#111", margin: "0 0 12px", letterSpacing: "0.04em" }}>
+                PRINCÍPIOS GERAIS
+              </h3>
+              <ul style={{ margin: 0, padding: "0 0 0 20px", color: "#444", fontSize: 14, lineHeight: 1.9 }}>
+                <li>Os pontos são individuais — cada jogador acumula pontos independentemente do parceiro</li>
+                <li>Contam os <strong>melhores {MAX_RESULTS} resultados</strong> dos últimos 12 meses (época rolante)</li>
+                <li>Os pontos de cada torneio têm validade de <strong>52 semanas</strong></li>
+                <li>O ranking é atualizado automaticamente após cada torneio concluído</li>
+              </ul>
+            </div>
+
+            {/* Tabela de pontos */}
+            <div style={{ marginBottom: 28 }}>
+              <h3 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 16, fontWeight: 700, color: "#111", margin: "0 0 4px", letterSpacing: "0.04em" }}>
+                PONTOS POR POSIÇÃO
+              </h3>
+              <p style={{ fontSize: 13, color: "#888", margin: "0 0 12px" }}>
+                Exemplo para um torneio com 8 duplas. Com mais participantes, os pontos escalam proporcionalmente.
+              </p>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                  <thead>
+                    <tr style={{ background: "#F9F9F9", borderBottom: "2px solid #eee" }}>
+                      <th style={{ padding: "8px 14px", textAlign: "left", color: "#888", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>Posição</th>
+                      <th style={{ padding: "8px 14px", textAlign: "right", color: "#888", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>8 duplas</th>
+                      <th style={{ padding: "8px 14px", textAlign: "right", color: "#888", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>16 duplas</th>
+                      <th style={{ padding: "8px 14px", textAlign: "right", color: "#888", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em" }}>32 duplas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {DOC_POSITIONS.map(({ label, pos }, idx) => (
+                      <tr key={pos} style={{ borderBottom: "1px solid #f5f5f5", background: idx === 0 ? "#FFFDE7" : "#fff" }}>
+                        <td style={{ padding: "9px 14px", fontWeight: idx === 0 ? 700 : 400, color: "#111" }}>
+                          {idx === 0 && <span style={{ marginRight: 6 }}>🏆</span>}
+                          {label}
+                        </td>
+                        <td style={{ padding: "9px 14px", textAlign: "right", fontWeight: 600, color: "#111" }}>
+                          {pointsForPosition(pos, 8)} pts
+                        </td>
+                        <td style={{ padding: "9px 14px", textAlign: "right", fontWeight: 600, color: "#555" }}>
+                          {pointsForPosition(pos, 16)} pts
+                        </td>
+                        <td style={{ padding: "9px 14px", textAlign: "right", fontWeight: 600, color: "#555" }}>
+                          {pointsForPosition(pos, 32)} pts
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p style={{ fontSize: 12, color: "#aaa", marginTop: 8 }}>
+                Fórmula: pontos base × (1 + log₁₀(nº duplas / 8)). Com 8 duplas o multiplicador é ×1,0; com 16 duplas ≈ ×1,3; com 32 duplas ≈ ×1,6.
+              </p>
+            </div>
+
+            {/* Formatos */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 8 }}>
+              <div style={{ background: "#F9F9F9", borderRadius: 12, padding: "18px 20px" }}>
+                <h4 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 14, fontWeight: 700, color: "#111", margin: "0 0 8px", letterSpacing: "0.04em" }}>
+                  FORMATO NON-STOP
+                </h4>
+                <p style={{ fontSize: 13, color: "#555", margin: 0, lineHeight: 1.8 }}>
+                  A posição final é determinada pela tabela de classificação — vitórias e depois diferencial de games. Se houver fase final, os finalistas são classificados pelo desempenho nessa fase; os restantes pela fase de grupos.
+                </p>
+              </div>
+              <div style={{ background: "#F9F9F9", borderRadius: 12, padding: "18px 20px" }}>
+                <h4 style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 14, fontWeight: 700, color: "#111", margin: "0 0 8px", letterSpacing: "0.04em" }}>
+                  FORMATO ELIMINATÓRIO
+                </h4>
+                <p style={{ fontSize: 13, color: "#555", margin: 0, lineHeight: 1.8 }}>
+                  A posição é definida pela ronda mais longe atingida. Os dois finalistas recebem 1.º e 2.º lugar. Os semifinalistas ficam em 3.º lugar. Os quartofinalistam em 5.º lugar, e assim sucessivamente.
+                </p>
+              </div>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   );
