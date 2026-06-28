@@ -23,9 +23,11 @@ function levelLabel(level: string) {
 }
 
 export default async function RankingPage() {
-  const members = await db.member.findMany({
-    include: { rankingPoints: { where: { year: YEAR } } },
-  });
+  const [members, finishedCount, upcomingCount] = await Promise.all([
+    db.member.findMany({ include: { rankingPoints: { where: { year: YEAR } } } }),
+    db.tournament.count({ where: { status: "FINISHED" } }),
+    db.tournament.count({ where: { status: { in: ["DRAFT", "OPEN", "ONGOING"] } } }),
+  ]);
 
   const rankings = members
     .map((m) => ({
@@ -36,6 +38,7 @@ export default async function RankingPage() {
     .filter((r) => r.tournaments > 0)
     .sort((a, b) => b.totalPoints - a.totalPoints);
 
+  const totalPointsRegistered = rankings.reduce((s, r) => s + r.totalPoints, 0);
   const isEmpty = rankings.length === 0;
 
   return (
@@ -77,16 +80,16 @@ export default async function RankingPage() {
               </p>
               <div style={{ display: "flex", gap: 20, justifyContent: "center", flexWrap: "wrap", marginBottom: 40 }}>
                 <div style={{ background: "#F9F9F9", borderRadius: 14, padding: "18px 24px", textAlign: "center", minWidth: 140 }}>
-                  <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 28, fontWeight: 700, color: "#F5C000", margin: 0 }}>1</p>
-                  <p style={{ fontSize: 12, color: "#888", margin: "4px 0 0" }}>Torneio realizado</p>
+                  <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 28, fontWeight: 700, color: "#F5C000", margin: 0 }}>{finishedCount}</p>
+                  <p style={{ fontSize: 12, color: "#888", margin: "4px 0 0" }}>Torneio{finishedCount !== 1 ? "s" : ""} realizado{finishedCount !== 1 ? "s" : ""}</p>
                 </div>
                 <div style={{ background: "#F9F9F9", borderRadius: 14, padding: "18px 24px", textAlign: "center", minWidth: 140 }}>
-                  <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 28, fontWeight: 700, color: "#F5C000", margin: 0 }}>0</p>
+                  <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 28, fontWeight: 700, color: "#F5C000", margin: 0 }}>{totalPointsRegistered}</p>
                   <p style={{ fontSize: 12, color: "#888", margin: "4px 0 0" }}>Pontos registados</p>
                 </div>
                 <div style={{ background: "#F9F9F9", borderRadius: 14, padding: "18px 24px", textAlign: "center", minWidth: 140 }}>
-                  <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 28, fontWeight: 700, color: "#F5C000", margin: 0 }}>3</p>
-                  <p style={{ fontSize: 12, color: "#888", margin: "4px 0 0" }}>Torneios previstos</p>
+                  <p style={{ fontFamily: "var(--font-oswald), sans-serif", fontSize: 28, fontWeight: 700, color: "#F5C000", margin: 0 }}>{upcomingCount}</p>
+                  <p style={{ fontSize: 12, color: "#888", margin: "4px 0 0" }}>Torneio{upcomingCount !== 1 ? "s" : ""} por realizar</p>
                 </div>
               </div>
               <a
