@@ -16,8 +16,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const data = await req.json();
 
-  const allowed = ["memberNumber", "quotaYear", "role", "level"];
-  const filtered = Object.fromEntries(Object.entries(data).filter(([k]) => allowed.includes(k)));
+  const allowed = ["name", "email", "phone", "gender", "level", "memberNumber", "quotaYear", "role"];
+  const filtered = Object.fromEntries(
+    Object.entries(data)
+      .filter(([k]) => allowed.includes(k))
+      .map(([k, v]) => [k, v === "" ? null : v])
+  );
 
   const updated = await db.member.update({ where: { id }, data: filtered as never });
   revalidatePath("/admin/socios");
