@@ -67,7 +67,7 @@ type StandingEntry = {
   wins: number; losses: number; gamesWon: number; gamesLost: number;
 };
 
-function computeGroupStandings(matches: MatchWithPlayers[], groupNum: number): StandingEntry[] {
+function computeGroupStandings(matches: MatchWithPlayers[], groupNum: number | null): StandingEntry[] {
   const stats = new Map<string, StandingEntry>();
   const groupMatches = matches.filter((m) => m.groupNumber === groupNum && m.completedAt && m.winnerId);
   for (const m of groupMatches) {
@@ -253,19 +253,30 @@ function FinishedTournamentCard({ t }: { t: FinishedTournament }) {
   const date = new Date(t.date);
   const participants = t._count.registrations;
   const completedMatches = t.matches.filter((m) => m.completedAt);
+  const isNonStop = t.format === "NON_STOP";
 
-  // Case 1: finals matches (groupNumber null) exist
-  const finalsMatches = completedMatches.filter((m) => m.groupNumber == null && m.winnerId);
+  // Finals: elimination = groupNumber null; non-stop = groupNumber 0 (created by generateFinals)
+  const finalsMatches = completedMatches.filter((m) =>
+    m.winnerId && (isNonStop ? m.groupNumber === 0 : m.groupNumber == null)
+  );
   const hasFinalsData = finalsMatches.length > 0;
 
-  // Case 2: pool-only — compute standings per group (groupNumber >= 1)
-  const poolGroupNums = hasFinalsData
-    ? []
-    : [...new Set(completedMatches.map((m) => m.groupNumber).filter((g): g is number => g != null && g >= 1))].sort();
+  // Pool groups:
+  // - non-stop multi-group: groupNumber >= 1
+  // - non-stop single pool: groupNumber === null  (use sentinel -1 internally)
+  // - elimination: no pool standings
+  const numberedGroups = isNonStop
+    ? [...new Set(completedMatches.filter((m) => m.groupNumber != null && m.groupNumber > 0).map((m) => m.groupNumber!))].sort()
+    : [];
+  const hasSinglePool = isNonStop && completedMatches.some((m) => m.groupNumber === null);
+  // -1 = sentinel for "single pool (groupNumber null)"
+  const poolGroupNums: number[] = numberedGroups.length > 0
+    ? numberedGroups
+    : hasSinglePool ? [-1] : [];
 
   const poolStandings = poolGroupNums.map((g) => ({
     group: g,
-    standings: computeGroupStandings(completedMatches, g),
+    standings: computeGroupStandings(completedMatches, g === -1 ? null : g),
   }));
 
   // For finals display
@@ -282,10 +293,11 @@ function FinishedTournamentCard({ t }: { t: FinishedTournament }) {
 
   const displayFinalsMatches = finalsMatches.sort((a, b) => b.round - a.round || a.position - b.position);
 
-  // Pool matches for toggle (all completed, grouped)
+  // Pool matches for results toggle
+  // non-stop single pool: groupNumber null; multi-group: groupNumber >= 1; elimination: handled separately
   const allPoolMatches = completedMatches
-    .filter((m) => m.groupNumber != null && m.groupNumber >= 1)
-    .sort((a, b) => (a.groupNumber ?? 0) - (b.groupNumber ?? 0) || b.round - a.round || a.position - b.position);
+    .filter((m) => isNonStop ? (m.groupNumber === null || (m.groupNumber != null && m.groupNumber > 0)) : (m.groupNumber != null && m.groupNumber >= 1))
+    .sort((a, b) => (a.groupNumber ?? 0) - (b.groupNumber ?? 0) || a.round - b.round || a.position - b.position);
 
   const totalMatchCount = (hasFinalsData ? displayFinalsMatches.length : 0) + allPoolMatches.length;
 
@@ -335,7 +347,7 @@ function FinishedTournamentCard({ t }: { t: FinishedTournament }) {
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
             {poolStandings.map(({ group, standings }) => (
               <div key={group} style={{ flex: 1, minWidth: 200 }}>
-                {poolStandings.length > 1 && (
+                {poolStandings.length > 1 && group !== -1 && (
                   <p style={{ fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" }}>
                     Grupo {group}
                   </p>
@@ -405,11 +417,12 @@ function FinishedTournamentCard({ t }: { t: FinishedTournament }) {
               )}
               {/* Pool matches grouped */}
               {poolGroupNums.map((g) => {
-                const gMatches = allPoolMatches.filter((m) => m.groupNumber === g);
+                const gKey = g === -1 ? null : g;
+                const gMatches = allPoolMatches.filter((m) => m.groupNumber === gKey);
                 if (gMatches.length === 0) return null;
                 return (
                   <div key={g} style={{ marginBottom: 16 }}>
-                    {poolGroupNums.length > 1 && (
+                    {poolGroupNums.length > 1 && g !== -1 && (
                       <p style={{ fontSize: 11, fontWeight: 700, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 8px" }}>
                         Grupo {g}
                       </p>
