@@ -57,7 +57,7 @@ export default async function RankingPage({
     ? members.filter((m) => m.level === activeNivel)
     : members;
 
-  const rankings = filtered
+  const rawRankings = filtered
     .map((m) => ({
       member: m,
       totalPoints: m.rankingPoints.reduce((s, r) => s + r.points, 0),
@@ -65,6 +65,24 @@ export default async function RankingPage({
     }))
     .filter((r) => r.tournaments > 0)
     .sort((a, b) => b.totalPoints - a.totalPoints);
+
+  // Standard competition ranking: same points = same position; next skips
+  const rankings = rawRankings.map((r, idx) => {
+    const position = idx === 0
+      ? 1
+      : rawRankings[idx - 1].totalPoints === r.totalPoints
+        ? rawRankings[idx - 1].totalPoints // placeholder, recalculated below
+        : idx + 1;
+    return { ...r, position: 0, isFirstInGroup: false };
+  });
+  let pos = 1;
+  for (let i = 0; i < rankings.length; i++) {
+    if (i === 0 || rawRankings[i].totalPoints !== rawRankings[i - 1].totalPoints) {
+      pos = i + 1;
+      rankings[i].isFirstInGroup = true;
+    }
+    rankings[i].position = pos;
+  }
 
   const totalPointsRegistered = members.reduce(
     (s, m) => s + m.rankingPoints.reduce((ss, r) => ss + r.points, 0),
@@ -181,23 +199,27 @@ export default async function RankingPage({
                 </tr>
               </thead>
               <tbody>
-                {rankings.map(({ member, totalPoints, tournaments }, idx) => {
-                  const badge = BADGE[idx] ?? { bg: "#F0F0F0", color: "#999", rowBg: "#fff" };
+                {rankings.map(({ member, totalPoints, tournaments, position, isFirstInGroup }) => {
+                  const badge = BADGE[position - 1] ?? { bg: "#F0F0F0", color: "#999", rowBg: "#fff" };
                   const ini = initials(member.name);
                   return (
                     <tr key={member.id} style={{ borderBottom: "1px solid #f0f0f0", background: badge.rowBg }}>
                       <td style={{ padding: "12px 16px" }}>
-                        {idx < 3 ? (
-                          <span style={{ background: badge.bg, color: badge.color, fontWeight: 800, fontSize: 13, width: 26, height: 26, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-                            {idx + 1}
-                          </span>
+                        {isFirstInGroup ? (
+                          position <= 3 ? (
+                            <span style={{ background: badge.bg, color: badge.color, fontWeight: 800, fontSize: 13, width: 26, height: 26, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                              {position}
+                            </span>
+                          ) : (
+                            <span style={{ color: "#bbb", fontWeight: 600, fontSize: 14, paddingLeft: 4 }}>{position}</span>
+                          )
                         ) : (
-                          <span style={{ color: "#bbb", fontWeight: 600, fontSize: 14, paddingLeft: 4 }}>{idx + 1}</span>
+                          <span style={{ color: "#ddd", fontSize: 14, paddingLeft: 4 }}>—</span>
                         )}
                       </td>
                       <td style={{ padding: "12px 16px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <div style={{ width: 34, height: 34, borderRadius: "50%", background: idx === 0 ? "#F5C000" : "#F0F0F0", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, color: idx === 0 ? "#111" : "#666", flexShrink: 0 }}>
+                          <div style={{ width: 34, height: 34, borderRadius: "50%", background: position === 1 ? "#F5C000" : "#F0F0F0", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, color: position === 1 ? "#111" : "#666", flexShrink: 0 }}>
                             {ini}
                           </div>
                           <div>
