@@ -26,6 +26,9 @@ export function Footer() {
           Política de Privacidade
         </Link>
         <p style={{ color: "#555", fontSize: 12, margin: 0 }}>© 2026 BTG. Vila Nova de Gaia, Portugal.</p>
+        <a href="https://velo.build" target="_blank" rel="noopener noreferrer" style={{ color: "#333", fontSize: 11, textDecoration: "none" }}>
+          feito por velo.build
+        </a>
       </div>
     </footer>
   );
